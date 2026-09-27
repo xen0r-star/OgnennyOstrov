@@ -1,0 +1,11 @@
+/cmake-build-debug/
+/build/
+/bin/
+
+/.idea/
+/.vscode/
+*.user
+*.suo
+
+.DS_Store
+Thumbs.db
