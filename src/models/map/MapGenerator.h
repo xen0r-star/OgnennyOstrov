@@ -19,11 +19,6 @@ struct Tile {
     AngleTile rotation = ANGLE_0;
 };
 
-// ----------------------------------------------------------------------
-// Système de rendu par z-index : une case peut porter plusieurs tuiles
-// empilées (sol, structure, décor), dessinées de la plus basse à la plus
-// haute z. Voir MapGenerator::assembleResult().
-// ----------------------------------------------------------------------
 namespace ZIndex {
     inline constexpr int Ground     = 0;
     inline constexpr int Structure  = 10;
@@ -36,7 +31,7 @@ struct LayerTile {
 };
 
 struct MapCell {
-    std::vector<LayerTile> layers; // trié par z croissant
+    std::vector<LayerTile> layers;
 };
 
 namespace TileType {
@@ -113,16 +108,14 @@ public:
     static TileMap generateMap(int height, int width, int seed);
 
 private:
-    // ------------------------------------------------------------------
-    // Types internes du pipeline de génération (implémentation only).
-    // ------------------------------------------------------------------
     using Point = std::pair<int, int>;
 
+    // Type logique d'une case, utilisé pour le pathfinding et les règles
+    // de génération. Indépendant du rendu (voir TileGrid ci-dessous).
     enum class Cell : unsigned char {
         Grass, Dirt, HouseFloor, Wall, Door, Path, Rail, Opening
     };
 
-    // Grille logique : un type de case par tuile (herbe, mur, chemin...).
     struct Grid {
         int width = 0, height = 0;
         std::vector<std::vector<Cell>> cell;
@@ -136,17 +129,15 @@ private:
     };
 
     struct Rect {
-        int x, y, w, h; // (x, y) = coin haut-gauche, en coordonnées [col, row]
+        int x, y, w, h;
         int right()  const { return x + w - 1; }
         int bottom() const { return y + h - 1; }
     };
 
-    // Une maison = un rectangle + un "type" qui détermine son mobilier
-    // (voir placeDecorations()).
     enum HouseType {
-        HOUSE_BARRACKS = 0, // lits alignés
-        HOUSE_MESS     = 1, // tables / chaises + tonneau
-        HOUSE_STORAGE  = 2  // caisses / tonneaux
+        HOUSE_BARRACKS = 0,
+        HOUSE_MESS     = 1,
+        HOUSE_STORAGE  = 2
     };
 
     struct House : Rect {
@@ -155,53 +146,30 @@ private:
 
     struct Door { int x, y; };
 
-    // Sol (herbe, terre, dallage...) : une seule tuile par case, en z = Ground.
-    using GroundGrid = std::vector<std::vector<Tile>>;
+    struct TileCell { std::vector<LayerTile> layers; };
+    using TileGrid = std::vector<std::vector<TileCell>>;
 
-    // Superposition (murs, portes, chemins, décor...) : chaque case peut
-    // porter plusieurs tuiles empilées (voir setStructure() / addDecoration()).
-    struct OverlayCell { std::vector<LayerTile> layers; };
-    using OverlayGrid = std::vector<std::vector<OverlayCell>>;
-
-    // Pour chaque case de chemin, indique si elle appartient au réseau
-    // "promenade" (style 2) ou "maison" (style 1) — voir autotilePathsUnified().
     using PromenadeFlags = std::vector<std::vector<bool>>;
 
-    // ------------------------------------------------------------------
-    // État de la génération en cours. Tout ce qui était auparavant passé
-    // en paramètre d'une fonction à l'autre (grille, RNG, maisons,
-    // portes...) devient un attribut, rempli au fil du pipeline par
-    // build() et lu par les étapes ci-dessous.
-    // ------------------------------------------------------------------
     std::mt19937 rng_;
     Grid grid_;
-    GroundGrid ground_;
-    OverlayGrid overlay_;
+    TileGrid tiles_;
     std::vector<House> houses_;
     std::vector<Door> doors_;
     PromenadeFlags isPromenade_;
 
-    int margin_ = 0;                                   // épaisseur de la bande d'arbres
-    int playX0_ = 0, playY0_ = 0, playX1_ = 0, playY1_ = 0; // zone jouable (intérieur de la clôture)
+    int margin_ = 0;
+    int playX0_ = 0, playY0_ = 0, playX1_ = 0, playY1_ = 0;
 
-    // ------------------------------------------------------------------
-    // Orchestration.
-    // ------------------------------------------------------------------
     TileMap build(int height, int width, int seed);
     void initGrids(int totalWidth, int totalHeight);
     TileMap assembleResult() const;
 
-    // ------------------------------------------------------------------
-    // Aides bas niveau (superposition, orientation, pathfinding).
-    // ------------------------------------------------------------------
-    void setStructure(int x, int y, Tile tile);
-    void addDecoration(int x, int y, Tile tile);
-    bool hasAnyOverlay(int x, int y) const;
+    void addTile(int x, int y, Tile tile, int z);
+    bool hasDecoration(int x, int y) const;
 
-    static AngleTile cornerAngle(bool top, bool left);
-    static AngleTile sideAngle(bool top, bool right, bool bottom, bool left);
-    static AngleTile curveAngle(bool n, bool e, bool s, bool w);
-    static AngleTile tJunctionAngle(bool n, bool e, bool s, bool w);
+    static AngleTile pairAngle(bool a, bool b);
+    static AngleTile singleAngle(bool a, bool b, bool c);
     AngleTile randomAngle();
     static bool wantsRandomRotation(const Tile& t);
 
@@ -209,9 +177,6 @@ private:
                                   const std::function<bool(int, int)>& isBlocked) const;
     bool blocksPath(int x, int y) const;
 
-    // ------------------------------------------------------------------
-    // Étapes du pipeline de génération, dans leur ordre d'exécution.
-    // ------------------------------------------------------------------
     void buildPerimeterFence();
     void placeTreeBorder();
     int  generateBaseTerrain();
