@@ -16,11 +16,12 @@ public:
 private:
     sf::Texture texture;
 
-    static float angleToDegrees(AngleTile angle);
+    static float angleToDegrees(Angle angle);
     void drawTile(sf::RenderWindow& window, const Tile& tile, int i, int j) const;
 
     // For testing
     sf::View view;
+    bool viewInitialized = false;
     bool isDragging = false;
     sf::Vector2i oldMousePos;
 };

@@ -15,7 +15,7 @@ MapView::MapView() {
 
 MapView::~MapView() = default;
 
-float MapView::angleToDegrees(const AngleTile angle) {
+float MapView::angleToDegrees(const Angle angle) {
     switch (angle) {
         case ANGLE_0:   return 0.f;
         case ANGLE_90:  return 90.f;
@@ -26,54 +26,60 @@ float MapView::angleToDegrees(const AngleTile angle) {
 }
 
 void MapView::handleEvent(const sf::Event& event, sf::RenderWindow& window) {
-    if (const auto* resized = event.getIf<sf::Event::Resized>()) {
-        const sf::Vector2f newSize(
-            static_cast<float>(resized->size.x),
-            static_cast<float>(resized->size.y)
-        );
-        view.setSize(newSize);
-    }
+    switch (event.type) {
+        case sf::Event::Resized:
+            view.setSize(static_cast<float>(event.size.width),
+                         static_cast<float>(event.size.height));
+            break;
 
-    if (const auto* mousePressed = event.getIf<sf::Event::MouseButtonPressed>()) {
-        if (mousePressed->button == sf::Mouse::Button::Left) {
-            isDragging = true;
-            oldMousePos = { mousePressed->position.x, mousePressed->position.y };
-        }
-    }
-    else if (const auto* mouseReleased = event.getIf<sf::Event::MouseButtonReleased>()) {
-        if (mouseReleased->button == sf::Mouse::Button::Left) {
-            isDragging = false;
-        }
-    }
-    else if (const auto* mouseMoved = event.getIf<sf::Event::MouseMoved>()) {
-        if (isDragging) {
-            const sf::Vector2i newMousePos = { mouseMoved->position.x, mouseMoved->position.y };
-            const sf::Vector2f delta = window.mapPixelToCoords(oldMousePos) - window.mapPixelToCoords(newMousePos);
+        case sf::Event::MouseButtonPressed:
+            if (event.mouseButton.button == sf::Mouse::Left) {
+                isDragging = true;
+                oldMousePos = { event.mouseButton.x, event.mouseButton.y };
+            }
+            break;
 
-            view.move(delta);
-            oldMousePos = newMousePos;
-        }
+        case sf::Event::MouseButtonReleased:
+            if (event.mouseButton.button == sf::Mouse::Left) {
+                isDragging = false;
+            }
+            break;
+
+        case sf::Event::MouseMoved:
+            if (isDragging) {
+                const sf::Vector2i newMousePos = { event.mouseMove.x, event.mouseMove.y };
+                const sf::Vector2f delta = window.mapPixelToCoords(oldMousePos)
+                                         - window.mapPixelToCoords(newMousePos);
+
+                view.move(delta);
+                oldMousePos = newMousePos;
+            }
+            break;
+
+        default:
+            break;
     }
 }
 
 void MapView::drawTile(sf::RenderWindow& window, const Tile& tile, const int i, const int j) const {
-    const auto rect = sf::IntRect(
-        { tile.col * TILE_SIZE, tile.row * TILE_SIZE },
-        { TILE_SIZE, TILE_SIZE }
+    const sf::IntRect rect(
+        tile.col * TILE_SIZE, tile.row * TILE_SIZE,
+        TILE_SIZE, TILE_SIZE
     );
 
     sf::Sprite sprite(texture, rect);
-    sprite.setOrigin({TILE_SIZE / 2.f, TILE_SIZE / 2.f});
-    sprite.setRotation(sf::degrees(angleToDegrees(tile.rotation)));
-    sprite.setPosition({
+    sprite.setOrigin(TILE_SIZE / 2.f, TILE_SIZE / 2.f);
+    sprite.setRotation(angleToDegrees(tile.rotation));
+    sprite.setPosition(
         static_cast<float>(i * TILE_STEP) + TILE_SIZE / 2.f,
         static_cast<float>(j * TILE_STEP) + TILE_SIZE / 2.f
-    });
+    );
     window.draw(sprite);
 }
 
 void MapView::drawMap(sf::RenderWindow& window, const TileMap& map) {
-    if (view.getSize().x == 0.f && view.getSize().y == 0.f) {
+    if (!viewInitialized) {
+        viewInitialized = true;
         view = window.getDefaultView();
 
         if (!map.empty() && !map[0].empty()) {
@@ -90,12 +96,11 @@ void MapView::drawMap(sf::RenderWindow& window, const TileMap& map) {
                 }
             }
 
-            view.setCenter({ mapWidth / 2.f, mapHeight / 2.f });
+            view.setCenter(mapWidth / 2.f, mapHeight / 2.f);
         }
     }
 
     window.setView(view);
-
 
     static constexpr int zPasses[] = { ZIndex::Ground, ZIndex::Structure, ZIndex::Decoration };
 

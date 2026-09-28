@@ -9,13 +9,13 @@
 #include "views/MapView.h"
 
 Game::Game() {
-    window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::State::Windowed);
+    window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Default);
     window.setFramerateLimit(60);
 
-    ShowWindow(window.getNativeHandle(), SW_MAXIMIZE);
+    ShowWindow(window.getSystemHandle(), SW_MAXIMIZE);
 
     std::random_device rd;
-    map = MapGenerator::generateMap(50, 50, static_cast<int>(rd()));
+    map = MapGenerator::generateMap(100, 100, static_cast<int>(rd()));
 }
 
 Game::~Game() = default;
@@ -33,13 +33,14 @@ void Game::run() {
 }
 
 void Game::processEvents() {
-    while (const std::optional event = window.pollEvent()) {
-        if (event->is<sf::Event::Closed>()) {
+    sf::Event event;
+    while (window.pollEvent(event)) {
+        if (event.type == sf::Event::Closed) {
             window.close();
         }
 
         // For testing
-        mapView.handleEvent(*event, window);
+        mapView.handleEvent(event, window);
 
         // Input Controller
     }

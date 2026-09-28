@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-enum AngleTile {
+enum Angle {
     ANGLE_0,
     ANGLE_90,
     ANGLE_180,
@@ -16,7 +16,11 @@ enum AngleTile {
 struct Tile {
     int col = 0;
     int row = 0;
-    AngleTile rotation = ANGLE_0;
+    Angle rotation = ANGLE_0;
+
+    // Constructeur constexpr indispensable pour GCC 8.1 / C++17
+    constexpr Tile(int c = 0, int r = 0, Angle rot = ANGLE_0)
+        : col(c), row(r), rotation(rot) {}
 };
 
 namespace ZIndex {
@@ -35,67 +39,67 @@ struct MapCell {
 };
 
 namespace TileType {
-    inline constexpr Tile FLOOR_STONE_PLAIN         = {.col = 0, .row = 0};
-    inline constexpr Tile FLOOR_STONE_TILES         = {.col = 0, .row = 1};
-    inline constexpr Tile FLOOR_STONE_CORNER_DIAG   = {.col = 0, .row = 2};
-    inline constexpr Tile FLOOR_STONE_CROSS         = {.col = 0, .row = 3};
-    inline constexpr Tile FLOOR_STONE_PATTERN       = {.col = 0, .row = 4};
-    inline constexpr Tile FLOOR_STONE_CRACKED       = {.col = 0, .row = 5};
-    inline constexpr Tile FLOOR_STONE_CORNER_BEVEL  = {.col = 1, .row = 0};
-    inline constexpr Tile FLOOR_WOOD_PLANKS         = {.col = 1, .row = 1};
+    inline constexpr Tile FLOOR_STONE_PLAIN         = Tile(0, 0);
+    inline constexpr Tile FLOOR_STONE_TILES         = Tile(0, 1);
+    inline constexpr Tile FLOOR_STONE_CORNER_DIAG   = Tile(0, 2);
+    inline constexpr Tile FLOOR_STONE_CROSS         = Tile(0, 3);
+    inline constexpr Tile FLOOR_STONE_PATTERN       = Tile(0, 4);
+    inline constexpr Tile FLOOR_STONE_CRACKED       = Tile(0, 5);
+    inline constexpr Tile FLOOR_STONE_CORNER_BEVEL  = Tile(1, 0);
+    inline constexpr Tile FLOOR_WOOD_PLANKS         = Tile(1, 1);
 
-    inline constexpr Tile GROUND_DIRT               = {.col = 1, .row = 2};
-    inline constexpr Tile GROUND_GRASS              = {.col = 1, .row = 3};
+    inline constexpr Tile GROUND_DIRT               = Tile(1, 2);
+    inline constexpr Tile GROUND_GRASS              = Tile(1, 3);
 
-    inline constexpr Tile WALL_STRAIGHT             = {.col = 1, .row = 4};
-    inline constexpr Tile WALL_CORNER_OUTER         = {.col = 1, .row = 5};
-    inline constexpr Tile WALL_STRAIGHT_DIAG        = {.col = 2, .row = 0};
-    inline constexpr Tile WALL_WIDE_CURVE_OUTER     = {.col = 2, .row = 1};
-    inline constexpr Tile WALL_CURVE_OUTER          = {.col = 2, .row = 2};
-    inline constexpr Tile WALL_CURVE_INNER          = {.col = 2, .row = 3};
-    inline constexpr Tile WALL_CORNER_INNER         = {.col = 2, .row = 4};
-    inline constexpr Tile WALL_ROUNDED_END          = {.col = 2, .row = 5};
-    inline constexpr Tile WALL_WINDOWS              = {.col = 3, .row = 0};
-    inline constexpr Tile WALL_WEAK                 = {.col = 3, .row = 1};
-    inline constexpr Tile WALL_STRAIGHT_SHORT       = {.col = 3, .row = 2};
-    inline constexpr Tile WALL_DOORWAY_OPEN         = {.col = 3, .row = 3};
-    inline constexpr Tile WALL_DOOR_FRAME           = {.col = 3, .row = 4};
-    inline constexpr Tile WALL_DOORWAY_CLOSE        = {.col = 3, .row = 5};
-    inline constexpr Tile WALL_BROKEN_DOOR          = {.col = 4, .row = 0};
+    inline constexpr Tile WALL_STRAIGHT             = Tile(1, 4);
+    inline constexpr Tile WALL_CORNER_OUTER         = Tile(1, 5);
+    inline constexpr Tile WALL_STRAIGHT_DIAG        = Tile(2, 0);
+    inline constexpr Tile WALL_WIDE_CURVE_OUTER     = Tile(2, 1);
+    inline constexpr Tile WALL_CURVE_OUTER          = Tile(2, 2);
+    inline constexpr Tile WALL_CURVE_INNER          = Tile(2, 3);
+    inline constexpr Tile WALL_CORNER_INNER         = Tile(2, 4);
+    inline constexpr Tile WALL_ROUNDED_END          = Tile(2, 5);
+    inline constexpr Tile WALL_WINDOWS              = Tile(3, 0);
+    inline constexpr Tile WALL_WEAK                 = Tile(3, 1);
+    inline constexpr Tile WALL_STRAIGHT_SHORT       = Tile(3, 2);
+    inline constexpr Tile WALL_DOORWAY_OPEN         = Tile(3, 3);
+    inline constexpr Tile WALL_DOOR_FRAME           = Tile(3, 4);
+    inline constexpr Tile WALL_DOORWAY_CLOSE        = Tile(3, 5);
+    inline constexpr Tile WALL_BROKEN_DOOR          = Tile(4, 0);
 
-    inline constexpr Tile RAIL_STRAIGHT             = {.col = 4, .row = 1};
-    inline constexpr Tile RAIL_CURVE                = {.col = 4, .row = 2};
-    inline constexpr Tile RAIL_CROSSROADS           = {.col = 4, .row = 3};
-    inline constexpr Tile CART_WOODEN               = {.col = 4, .row = 4};
+    inline constexpr Tile RAIL_STRAIGHT             = Tile(4, 1);
+    inline constexpr Tile RAIL_CURVE                = Tile(4, 2);
+    inline constexpr Tile RAIL_CROSSROADS           = Tile(4, 3);
+    inline constexpr Tile CART_WOODEN               = Tile(4, 4);
 
-    inline constexpr Tile PATH_STRAIGHT_1           = {.col = 4, .row = 5};
-    inline constexpr Tile PATH_CURVE_1              = {.col = 5, .row = 0};
-    inline constexpr Tile PATH_CROSSROADS           = {.col = 5, .row = 1};
-    inline constexpr Tile PATH_T_JUNCTION           = {.col = 8, .row = 5};
-    inline constexpr Tile PATH_CURVE_2              = {.col = 5, .row = 2};
-    inline constexpr Tile PATH_STRAIGHT_2           = {.col = 5, .row = 3};
-    inline constexpr Tile PATH_ARROW                = {.col = 5, .row = 4};
-    inline constexpr Tile PATH_END                  = {.col = 5, .row = 5};
+    inline constexpr Tile PATH_STRAIGHT_1           = Tile(4, 5);
+    inline constexpr Tile PATH_CURVE_1              = Tile(5, 0);
+    inline constexpr Tile PATH_CROSSROADS           = Tile(5, 1);
+    inline constexpr Tile PATH_T_JUNCTION           = Tile(8, 5);
+    inline constexpr Tile PATH_CURVE_2              = Tile(5, 2);
+    inline constexpr Tile PATH_STRAIGHT_2           = Tile(5, 3);
+    inline constexpr Tile PATH_ARROW                = Tile(5, 4);
+    inline constexpr Tile PATH_END                  = Tile(5, 5);
 
-    inline constexpr Tile PROP_CAMPFIRE             = {.col = 6, .row = 0};
-    inline constexpr Tile PROP_GRASS_TUFT           = {.col = 6, .row = 1};
-    inline constexpr Tile PROP_BUSH                 = {.col = 6, .row = 2};
+    inline constexpr Tile PROP_CAMPFIRE             = Tile(6, 0);
+    inline constexpr Tile PROP_GRASS_TUFT           = Tile(6, 1);
+    inline constexpr Tile PROP_BUSH                 = Tile(6, 2);
 
-    inline constexpr Tile OBJECT_LARGE_CRATE_WOODEN = {.col = 6, .row = 3};
-    inline constexpr Tile OBJECT_LARGE_BARREL_TOP   = {.col = 6, .row = 4};
-    inline constexpr Tile OBJECT_SMALL_CRATE_WOODEN = {.col = 6, .row = 5};
-    inline constexpr Tile OBJECT_BARRELS_CLUSTER_1  = {.col = 7, .row = 0};
-    inline constexpr Tile OBJECT_SMALL_BARREL_TOP   = {.col = 7, .row = 1};
-    inline constexpr Tile OBJECT_BARRELS_CLUSTER_2  = {.col = 7, .row = 2};
-    inline constexpr Tile OBJECT_TABLE              = {.col = 7, .row = 3};
-    inline constexpr Tile OBJECT_CHAIR              = {.col = 7, .row = 4};
-    inline constexpr Tile OBJECT_BOARD              = {.col = 7, .row = 5};
-    inline constexpr Tile OBJECT_BED                = {.col = 8, .row = 0};
-    inline constexpr Tile OBJECT_BED_2              = {.col = 8, .row = 1};
+    inline constexpr Tile OBJECT_LARGE_CRATE_WOODEN = Tile(6, 3);
+    inline constexpr Tile OBJECT_LARGE_BARREL_TOP   = Tile(6, 4);
+    inline constexpr Tile OBJECT_SMALL_CRATE_WOODEN = Tile(6, 5);
+    inline constexpr Tile OBJECT_BARRELS_CLUSTER_1  = Tile(7, 0);
+    inline constexpr Tile OBJECT_SMALL_BARREL_TOP   = Tile(7, 1);
+    inline constexpr Tile OBJECT_BARRELS_CLUSTER_2  = Tile(7, 2);
+    inline constexpr Tile OBJECT_TABLE              = Tile(7, 3);
+    inline constexpr Tile OBJECT_CHAIR              = Tile(7, 4);
+    inline constexpr Tile OBJECT_BOARD              = Tile(7, 5);
+    inline constexpr Tile OBJECT_BED                = Tile(8, 0);
+    inline constexpr Tile OBJECT_BED_2              = Tile(8, 1);
 
-    inline constexpr Tile PROP_TREE                 = {.col = 8, .row = 2};
-    inline constexpr Tile WALL_BARBED_WIRE          = {.col = 8, .row = 3};
-    inline constexpr Tile WATCHTOWER                = {.col = 8, .row = 4};
+    inline constexpr Tile PROP_TREE                 = Tile(8, 2);
+    inline constexpr Tile WALL_BARBED_WIRE          = Tile(8, 3);
+    inline constexpr Tile WATCHTOWER                = Tile(8, 4);
 }
 
 using TileMap = std::vector<std::vector<MapCell>>;
@@ -110,8 +114,6 @@ public:
 private:
     using Point = std::pair<int, int>;
 
-    // Type logique d'une case, utilisé pour le pathfinding et les règles
-    // de génération. Indépendant du rendu (voir TileGrid ci-dessous).
     enum class Cell : unsigned char {
         Grass, Dirt, HouseFloor, Wall, Door, Path, Rail, Opening
     };
@@ -168,9 +170,9 @@ private:
     void addTile(int x, int y, Tile tile, int z);
     bool hasDecoration(int x, int y) const;
 
-    static AngleTile pairAngle(bool a, bool b);
-    static AngleTile singleAngle(bool a, bool b, bool c);
-    AngleTile randomAngle();
+    static Angle pairAngle(bool a, bool b);
+    static Angle singleAngle(bool a, bool b, bool c);
+    Angle randomAngle();
     static bool wantsRandomRotation(const Tile& t);
 
     std::vector<Point> findRoute(Point start, Point goal,

@@ -45,21 +45,21 @@ bool MapGenerator::hasDecoration(const int x, const int y) const {
     return false;
 }
 
-AngleTile MapGenerator::pairAngle(const bool a, const bool b) {
+Angle MapGenerator::pairAngle(const bool a, const bool b) {
     if (a && b)   return ANGLE_0;
     if (a && !b)  return ANGLE_90;
     if (!a && !b) return ANGLE_180;
     return ANGLE_270;
 }
 
-AngleTile MapGenerator::singleAngle(const bool a, const bool b, const bool c) {
+Angle MapGenerator::singleAngle(const bool a, const bool b, const bool c) {
     if (a) return ANGLE_0;
     if (b) return ANGLE_90;
     if (c) return ANGLE_180;
     return ANGLE_270;
 }
 
-AngleTile MapGenerator::randomAngle() {
+Angle MapGenerator::randomAngle() {
     static std::uniform_int_distribution d(0, 3);
     switch (d(rng_)) {
         case 0:  return ANGLE_0;
