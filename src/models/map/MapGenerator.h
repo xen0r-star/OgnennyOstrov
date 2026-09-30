@@ -179,10 +179,9 @@ private:
                                   const std::function<bool(int, int)>& isBlocked) const;
     bool blocksPath(int x, int y) const;
 
-    void buildPerimeterFence();
-    void placeTreeBorder();
-    int  generateBaseTerrain();
-    void generateHouses(int housesY0);
+    void buildMapBorder();
+    void generateBaseTerrain();
+    void generateHouses();
     void carveHouseFloors();
     void connectAdjacentHouses();
     void buildWalls();
@@ -190,6 +189,7 @@ private:
     void generateHousePaths();
     Point randomBoundaryPoint(int side);
     void generatePromenadePaths();
+    void removePathBlocks();
     void autotilePathsUnified();
     void autotileRails();
     void generateRails();

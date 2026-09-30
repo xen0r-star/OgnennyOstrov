@@ -154,7 +154,7 @@ std::vector<MapGenerator::Point> MapGenerator::findRoute(
 
 
 
-void MapGenerator::buildPerimeterFence() {
+void MapGenerator::buildMapBorder() {
     const int x0 = margin_, y0 = margin_;
     const int x1 = grid_.width - 1 - margin_, y1 = grid_.height - 1 - margin_;
     if (x1 - x0 < 4 || y1 - y0 < 4) return;
@@ -164,7 +164,7 @@ void MapGenerator::buildPerimeterFence() {
         return (x == x0 || x == x1) && (y == y0 || y == y1);
     };
 
-    // Horizontal sides (top / bottom)
+    // Horizontal wall (top / bottom)
     for (int x = x0; x <= x1; ++x) {
         for (int y : {y0, y1}) {
             grid_.at(x, y) = Cell::Wall;
@@ -174,7 +174,7 @@ void MapGenerator::buildPerimeterFence() {
             addTile(x, y, t, ZIndex::Structure);
         }
     }
-    // Vertical sides (left / right)
+    // Vertical wall (left / right)
     for (int y = y0 + 1; y < y1; ++y) {
         for (int x : {x0, x1}) {
             grid_.at(x, y) = Cell::Wall;
@@ -184,11 +184,17 @@ void MapGenerator::buildPerimeterFence() {
             addTile(x, y, t, ZIndex::Structure);
         }
     }
-}
 
-void MapGenerator::placeTreeBorder() {
-    if (margin_ <= 0) return;
+
+    // Add vegetation
     std::uniform_real_distribution chance(0.f, 1.f);
+
+    constexpr Tile vegetationProps[] = {
+        TileType::PROP_TREE, TileType::PROP_TREE, TileType::PROP_TREE, TileType::PROP_TREE,
+        TileType::PROP_BUSH,
+        TileType::PROP_GRASS_TUFT, TileType::PROP_GRASS_TUFT, TileType::PROP_GRASS_TUFT,
+    };
+    std::uniform_int_distribution propPick(0, (int)(sizeof(vegetationProps) / sizeof(Tile)) - 1);
 
     for (int x = 0; x < grid_.width; ++x) {
         for (int y = 0; y < grid_.height; ++y) {
@@ -197,9 +203,9 @@ void MapGenerator::placeTreeBorder() {
             if (!inMargin) continue;
 
             grid_.at(x, y) = Cell::Wall;
+            Tile t = vegetationProps[propPick(rng_)];
 
             if (chance(rng_) < 0.4f) {
-                Tile t = TileType::PROP_TREE;
                 t.rotation = randomAngle();
                 addTile(x, y, t, ZIndex::Decoration);
             }
@@ -207,104 +213,150 @@ void MapGenerator::placeTreeBorder() {
     }
 }
 
-int MapGenerator::generateBaseTerrain() {
+void MapGenerator::generateBaseTerrain() {
     const int x0 = playX0_, y0 = playY0_, x1 = playX1_, y1 = playY1_;
-    int areaW = x1 - x0 + 1;
-    int areaH = y1 - y0 + 1;
-    if (areaW < 10 || areaH < 10) return y0 - 1;
+    const int areaW = x1 - x0 + 1;
+    const int areaH = y1 - y0 + 1;
+    if (areaW < 10 || areaH < 10) return;
 
     auto fillDirt = [&](const Rect& r) {
         for (int x = std::max(x0, r.x); x <= std::min(x1, r.right()); ++x)
             for (int y = std::max(y0, r.y); y <= std::min(y1, r.bottom()); ++y) {
+                if (grid_.at(x, y) == Cell::Dirt) continue;
                 grid_.at(x, y) = Cell::Dirt;
                 addTile(x, y, TileType::GROUND_DIRT, ZIndex::Ground);
             }
     };
 
-    std::uniform_int_distribution sizeDist(6, std::max(6, std::min(areaW, areaH) / 2));
-    std::uniform_int_distribution zoneCountDist(2, 3);
-    int zoneCount = zoneCountDist(rng_);
+    const int maxSize = std::max(3, std::min(areaW, areaH) / 4);
+    std::uniform_int_distribution sizeDist(3, maxSize);
+    const int w   = std::min(sizeDist(rng_), areaW);
+    const int h   = std::min(sizeDist(rng_), areaH);
+    const int gap = std::uniform_int_distribution(1, 2)(rng_);
 
-    int w = std::min(sizeDist(rng_), areaW);
-    int h = std::min(sizeDist(rng_), areaH);
-    Rect first{x0 + std::uniform_int_distribution(0, std::max(0, areaW - w))(rng_),
-               y0 + std::uniform_int_distribution(0, std::max(0, areaH - h))(rng_), w, h};
-    fillDirt(first);
+    const bool horizontal = std::uniform_int_distribution(0, 1)(rng_) == 0;
 
-    std::vector zones{first};
-    int maxBottom = first.bottom();
+    const int mainSize  = horizontal ? areaW : areaH;
+    const int crossSize = horizontal ? areaH : areaW;
+    const int mainBase  = horizontal ? x0 : y0;
+    const int crossBase = horizontal ? y0 : x0;
+    const int mainLen   = horizontal ? w : h;
+    const int crossLen  = horizontal ? h : w;
 
-    for (int i = 1; i < zoneCount; ++i) {
-        const Rect& prev = zones.back();
-        int nw = std::min(sizeDist(rng_), areaW);
-        int nh = std::min(sizeDist(rng_), areaH);
+    int count = std::uniform_int_distribution(2, 3)(rng_);
+    while (count > 1 && count * mainLen + (count - 1) * gap > mainSize) --count;
 
-        Rect next{prev.x, prev.y, nw, nh};
-        switch (std::uniform_int_distribution(0, 3)(rng_)) {
-            case 0: next.x = prev.right() + 1;  next.y = prev.y;            break;
-            case 1: next.x = prev.x - nw;       next.y = prev.y;            break;
-            case 2: next.x = prev.x;            next.y = prev.bottom() + 1; break;
-            default: next.x = prev.x;           next.y = prev.y - nh;       break;
-        }
-        next.x = std::clamp(next.x, x0, std::max(x0, x1 - next.w + 1));
-        next.y = std::clamp(next.y, y0, std::max(y0, y1 - next.h + 1));
+    const int total = count * mainLen + (count - 1) * gap;
+    int pos      = mainBase  + std::uniform_int_distribution(0, mainSize  - total)(rng_);
+    int crossPos = crossBase + std::uniform_int_distribution(0, crossSize - crossLen)(rng_);
 
-        fillDirt(next);
-        zones.push_back(next);
-        maxBottom = std::max(maxBottom, next.bottom());
+    int maxBottom = y0 - 1;
+    for (int i = 0; i < count; ++i) {
+        Rect r = horizontal ? Rect{pos, crossPos, w, h}
+                            : Rect{crossPos, pos, w, h};
+        fillDirt(r);
+        maxBottom = std::max(maxBottom, r.bottom());
+        pos += mainLen + gap;
     }
-
-    return maxBottom;
 }
 
-void MapGenerator::generateHouses(int housesY0) {
-    const int x0 = playX0_, y0 = housesY0, x1 = playX1_, y1 = playY1_;
-    std::vector<House> houses;
-    int areaW = x1 - x0 + 1;
-    int areaH = y1 - y0 + 1;
-    if (areaW < 6 || areaH < 6) { houses_ = std::move(houses); return; }
+void MapGenerator::generateHouses() {
+    const int x0 = playX0_, y0 = playY0_, x1 = playX1_, y1 = playY1_;
+    const int areaW = x1 - x0 + 1;
+    const int areaH = y1 - y0 + 1;
+    houses_.clear();
+    if (areaW < 5 || areaH < 5) return;
 
-    std::uniform_int_distribution slotSizeDist(7, 10);
-    const int slotW = slotSizeDist(rng_);
-    const int slotH = slotSizeDist(rng_);
-    const int spacing = 2;
-    const int minHouseSize = 5;
+    constexpr int spacing   = 2;
+    constexpr int maxRows   = 4;
+    constexpr int maxHouses = 10;
 
-    std::uniform_int_distribution varyW(std::min(minHouseSize, slotW), slotW);
-    std::uniform_int_distribution varyH(std::min(minHouseSize, slotH), slotH);
+    long sx = 0, sy = 0, n = 0;
+    for (int x = x0; x <= x1; ++x)
+        for (int y = y0; y <= y1; ++y)
+            if (grid_.at(x, y) == Cell::Dirt) { sx += x; sy += y; ++n; }
+    const int cx = n ? static_cast<int>(sx / n) : (x0 + x1) / 2;
+    const int cy = n ? static_cast<int>(sy / n) : (y0 + y1) / 2;
 
-    int cols = std::max(1, (areaW + spacing) / (slotW + spacing));
-    int rows = std::max(1, (areaH + spacing) / (slotH + spacing));
+    struct Size { int w, h; };
+    std::vector<House> best;
 
-    while (rows * cols > 12 && (rows > 1 || cols > 1)) {
-        if (rows >= cols && rows > 1) --rows;
-        else if (cols > 1) --cols;
-    }
+    for (int attempt = 0; attempt < 6 && best.size() < 3; ++attempt) {
+        const int dirtGap = (attempt < 4) ? 1 : 0;
+        const int shrink  = std::min(attempt, 3);
 
-    int totalW = cols * slotW + (cols - 1) * spacing;
-    int totalH = rows * slotH + (rows - 1) * spacing;
-    int offX = x0 + std::max(0, (areaW - totalW) / 2);
-    int offY = y0 + std::max(0, (areaH - totalH) / 2);
-
-    int typeCounter = 0;
-    for (int r = 0; r < rows; ++r) {
-        for (int c = 0; c < cols; ++c) {
-            int slotX = offX + c * (slotW + spacing);
-            int slotY = offY + r * (slotH + spacing);
-
-            House house;
-            house.w = varyW(rng_);
-            house.h = varyH(rng_);
-            house.x = slotX;
-            house.y = slotY;
-            if (house.right() > x1 || house.bottom() > y1) continue;
-
-            house.type = typeCounter % 3;
-            ++typeCounter;
-            houses.push_back(house);
+        std::uniform_int_distribution wDist(std::max(5, 6 - shrink), std::max(5, 9 - 2 * shrink));
+        std::uniform_int_distribution hDist(5, std::max(5, 8 - 2 * shrink));
+        Size sizes[3];
+        for (auto& s : sizes) {
+            s.w = std::min(wDist(rng_), areaW);
+            s.h = std::min(hDist(rng_), areaH);
         }
+
+        auto touchesDirt = [&](int x, int y, int w, int h) {
+            for (int i = std::max(x0, x - dirtGap); i <= std::min(x1, x + w - 1 + dirtGap); ++i)
+                for (int j = std::max(y0, y - dirtGap); j <= std::min(y1, y + h - 1 + dirtGap); ++j)
+                    if (grid_.at(i, j) == Cell::Dirt) return true;
+            return false;
+        };
+
+        std::array<int, 3> order{0, 1, 2};
+        std::shuffle(order.begin(), order.end(), rng_);
+        std::vector<int> rowTypes;
+        int blockH = 0;
+        for (int r = 0; r < maxRows; ++r) {
+            const int t = order[r % 3];
+            const int add = sizes[t].h + (rowTypes.empty() ? 0 : spacing);
+            if (blockH + add > areaH) break;
+            blockH += add;
+            rowTypes.push_back(t);
+        }
+        if (rowTypes.empty()) continue;
+
+        std::vector<House> attemptBest;
+        int bestDist = INT_MAX;
+        for (int by = y0; by <= y1 - blockH + 1; ++by) {
+            std::vector<House> cand;
+            int y = by;
+            for (int t : rowTypes) {
+                const Size s = sizes[t];
+                const int cols   = std::max(1, (areaW + spacing) / (s.w + spacing));
+                const int totalW = cols * s.w + (cols - 1) * spacing;
+                const int offX   = x0 + (areaW - totalW) / 2;
+                for (int c = 0; c < cols; ++c) {
+                    House h;
+                    h.x = offX + c * (s.w + spacing);
+                    h.y = y;
+                    h.w = s.w;
+                    h.h = s.h;
+                    h.type = t;
+                    if (h.right() > x1 || h.bottom() > y1) continue;
+                    if (touchesDirt(h.x, h.y, h.w, h.h)) continue;
+                    cand.push_back(h);
+                }
+                y += s.h + spacing;
+            }
+            const int dist = std::abs(by + blockH / 2 - cy);
+            const int cnt  = std::min<int>(cand.size(), maxHouses);
+            const int bcnt = std::min<int>(attemptBest.size(), maxHouses);
+            if (cnt > bcnt || (cnt == bcnt && dist < bestDist)) {
+                attemptBest = std::move(cand);
+                bestDist = dist;
+            }
+        }
+        if (attemptBest.size() > best.size()) best = std::move(attemptBest);
     }
-    houses_ = std::move(houses);
+
+    if (static_cast<int>(best.size()) > maxHouses) {
+        auto dist2 = [&](const House& h) {
+            const int dx = h.x + h.w / 2 - cx, dy = h.y + h.h / 2 - cy;
+            return dx * dx + dy * dy;
+        };
+        std::sort(best.begin(), best.end(),
+                  [&](const House& a, const House& b) { return dist2(a) < dist2(b); });
+        best.resize(maxHouses);
+    }
+    houses_ = std::move(best);
 }
 
 void MapGenerator::carveHouseFloors() {
@@ -358,7 +410,16 @@ void MapGenerator::connectAdjacentHouses() {
 }
 
 void MapGenerator::buildWalls() {
+    struct Style { int windowPeriod; float weakChance; Tile corner; };
+    const Style styles[3] = {
+        {3, 0.04f, TileType::WALL_CORNER_OUTER},
+        {4, 0.10f, TileType::WALL_CORNER_OUTER},
+        {2, 0.02f, TileType::WALL_CORNER_OUTER},
+    };
+    std::uniform_real_distribution chance(0.f, 1.f);
+
     for (auto& h : houses_) {
+        const Style& st = styles[h.type % 3];
         for (int x = h.x; x <= h.right(); ++x) {
             for (int y = h.y; y <= h.bottom(); ++y) {
                 bool top = y == h.y, bottom = y == h.bottom();
@@ -372,10 +433,20 @@ void MapGenerator::buildWalls() {
 
                 Tile t;
                 if (isCorner) {
-                    t = TileType::WALL_CORNER_OUTER;
+                    t = st.corner;
                     t.rotation = pairAngle(top, left);
                 } else {
-                    t = TileType::WALL_STRAIGHT;
+                    const bool horizontal = top || bottom;
+                    const int len = horizontal ? h.w : h.h;
+                    const int i   = horizontal ? x - h.x : y - h.y;
+                    const bool inner = i >= 2 && i <= len - 3;
+
+                    if (inner && st.windowPeriod > 0 && (i - len / 2) % st.windowPeriod == 0)
+                        t = TileType::WALL_WINDOWS;
+                    else if (chance(rng_) < st.weakChance)
+                        t = TileType::WALL_WEAK;
+                    else
+                        t = TileType::WALL_STRAIGHT;
                     t.rotation = singleAngle(top, right, bottom);
                 }
                 addTile(x, y, t, ZIndex::Structure);
@@ -386,28 +457,75 @@ void MapGenerator::buildWalls() {
 
 void MapGenerator::placeDoors() {
     std::vector<Door> doors;
+    std::uniform_real_distribution chance(0.f, 1.f);
+
+    constexpr int DX[4] = {0, 1, 0, -1};
+    constexpr int DY[4] = {-1, 0, 1, 0};
+
+    std::array<int, 3> sidePerType, offsetPerType;
+    for (int t = 0; t < 3; ++t) {
+        sidePerType[t]   = std::uniform_int_distribution(0, 3)(rng_);
+        offsetPerType[t] = std::uniform_int_distribution(-1, 1)(rng_);
+    }
+
+    auto pickDoor = [&](const House& h, int side, int offset) -> Point {
+        std::vector<Point> cells;
+        switch (side) {
+            case 0:  for (int x = h.x + 1; x < h.right();  ++x) cells.emplace_back(x, h.y);       break;
+            case 1:  for (int y = h.y + 1; y < h.bottom(); ++y) cells.emplace_back(h.right(), y); break;
+            case 2:  for (int x = h.x + 1; x < h.right();  ++x) cells.emplace_back(x, h.bottom()); break;
+            default: for (int y = h.y + 1; y < h.bottom(); ++y) cells.emplace_back(h.x, y);       break;
+        }
+        cells.erase(std::remove_if(cells.begin(), cells.end(), [&](const Point& p) {
+            if (grid_.at(p.first, p.second) != Cell::Wall) return true;
+            const int ox = p.first + DX[side], oy = p.second + DY[side];
+            if (!grid_.inBounds(ox, oy)) return true;
+            const Cell c = grid_.at(ox, oy);
+            return c == Cell::Wall || c == Cell::HouseFloor || c == Cell::Opening || c == Cell::Door;
+        }), cells.end());
+        if (cells.empty()) return {-1, -1};
+
+        const bool horizontal = (side == 0 || side == 2);
+        const int target = horizontal ? h.x + (h.w - 1) / 2 + offset
+                                      : h.y + (h.h - 1) / 2 + offset;
+        Point best = cells[0];
+        int bestD = INT_MAX;
+        for (const Point& p : cells) {
+            const int d = std::abs((horizontal ? p.first : p.second) - target);
+            if (d < bestD) { bestD = d; best = p; }
+        }
+        return best;
+    };
+
+    auto placeDoor = [&](int x, int y, int side) {
+        grid_.at(x, y) = Cell::Door;
+        const float r = chance(rng_);
+        Tile t = r < 0.45f ? TileType::WALL_DOORWAY_OPEN
+               : r < 0.75f ? TileType::WALL_DOOR_FRAME
+               : r < 0.92f ? TileType::WALL_DOORWAY_CLOSE
+                           : TileType::WALL_BROKEN_DOOR;
+        t.rotation = singleAngle(side == 0, side == 1, side == 2);
+        addTile(x, y, t, ZIndex::Structure);
+        doors.push_back({.x = x, .y = y});
+    };
 
     for (auto& h : houses_) {
-        std::vector<Point> candidates;
-        for (int x = h.x + 1; x < h.right(); ++x)
-            if (grid_.at(x, h.bottom()) == Cell::Wall) candidates.emplace_back(x, h.bottom());
+        const int type = static_cast<int>(h.type) % 3;
+        int side = sidePerType[type];
+        Point p = pickDoor(h, side, offsetPerType[type]);
 
-        bool onBottom = !candidates.empty();
-        if (!onBottom) {
-            for (int x = h.x + 1; x < h.right(); ++x)
-                if (grid_.at(x, h.y) == Cell::Wall) candidates.emplace_back(x, h.y);
+        for (int k = 1; k < 4 && p.first < 0; ++k) {
+            side = (sidePerType[type] + k) % 4;
+            p = pickDoor(h, side, 0);
         }
-        if (candidates.empty()) continue;
+        if (p.first < 0) continue;
+        placeDoor(p.first, p.second, side);
 
-        std::uniform_int_distribution pick(0, (int)candidates.size() - 1);
-        auto [dx, dy] = candidates[pick(rng_)];
-        grid_.at(dx, dy) = Cell::Door;
-
-        Tile t = TileType::WALL_DOORWAY_OPEN;
-        t.rotation = onBottom ? ANGLE_180 : ANGLE_0;
-        addTile(dx, dy, t, ZIndex::Structure);
-
-        doors.push_back({.x = dx, .y = dy});
+        if (chance(rng_) < 0.2f) {
+            const int back = (side + 2) % 4;
+            const Point q = pickDoor(h, back, 0);
+            if (q.first >= 0) placeDoor(q.first, q.second, back);
+        }
     }
     doors_ = std::move(doors);
 }
@@ -416,8 +534,15 @@ void MapGenerator::generateHousePaths() {
     if (doors_.size() < 2) return;
 
     auto exteriorOf = [&](const Door& d) -> Point {
-        Cell above = grid_.inBounds(d.x, d.y - 1) ? grid_.at(d.x, d.y - 1) : Cell::Wall;
-        if (above != Cell::Wall && above != Cell::HouseFloor) return {d.x, d.y - 1};
+        constexpr int DX[4] = {0, 1, 0, -1};
+        constexpr int DY[4] = {-1, 0, 1, 0};
+        for (int k = 0; k < 4; ++k) {
+            const int nx = d.x + DX[k], ny = d.y + DY[k];
+            if (!grid_.inBounds(nx, ny)) continue;
+            const Cell c = grid_.at(nx, ny);
+            if (c == Cell::Wall || c == Cell::HouseFloor || c == Cell::Door || c == Cell::Opening) continue;
+            return {nx, ny};
+        }
         return {d.x, d.y + 1};
     };
 
@@ -484,6 +609,72 @@ void MapGenerator::generatePromenadePaths() {
     }
 }
 
+void MapGenerator::removePathBlocks() {
+    constexpr int DX[4] = {0, 1, 0, -1};
+    constexpr int DY[4] = {-1, 0, 1, 0};
+
+    auto pathLike = [&](int x, int y) {
+        return grid_.inBounds(x, y) &&
+               (grid_.at(x, y) == Cell::Path || grid_.at(x, y) == Cell::Door);
+    };
+
+    auto countComponents = [&]() {
+        std::vector<char> seen(grid_.width * grid_.height, 0);
+        std::vector<Point> stack;
+        int comps = 0;
+        for (int x = 0; x < grid_.width; ++x)
+            for (int y = 0; y < grid_.height; ++y) {
+                if (!pathLike(x, y) || seen[x * grid_.height + y]) continue;
+                ++comps;
+                seen[x * grid_.height + y] = 1;
+                stack.assign(1, Point{x, y});
+                while (!stack.empty()) {
+                    const Point p = stack.back();
+                    stack.pop_back();
+                    for (int k = 0; k < 4; ++k) {
+                        const int nx = p.first + DX[k], ny = p.second + DY[k];
+                        if (!pathLike(nx, ny) || seen[nx * grid_.height + ny]) continue;
+                        seen[nx * grid_.height + ny] = 1;
+                        stack.emplace_back(nx, ny);
+                    }
+                }
+            }
+        return comps;
+    };
+
+    auto neighbours = [&](const Point& p) {
+        int n = 0;
+        for (int k = 0; k < 4; ++k) n += pathLike(p.first + DX[k], p.second + DY[k]);
+        return n;
+    };
+
+    const int components = countComponents();
+    bool changed = true;
+    for (int pass = 0; changed && pass < 10; ++pass) {
+        changed = false;
+        for (int x = 0; x + 1 < grid_.width; ++x) {
+            for (int y = 0; y + 1 < grid_.height; ++y) {
+                const Point cells[4] = {{x, y}, {x + 1, y}, {x, y + 1}, {x + 1, y + 1}};
+                bool full = true;
+                for (const Point& c : cells)
+                    if (grid_.at(c.first, c.second) != Cell::Path) { full = false; break; }
+                if (!full) continue;
+
+                int order[4] = {0, 1, 2, 3};
+                std::sort(order, order + 4, [&](int a, int b) {
+                    return neighbours(cells[a]) < neighbours(cells[b]);
+                });
+                for (int idx : order) {
+                    const Point p = cells[idx];
+                    grid_.at(p.first, p.second) = Cell::Grass;
+                    if (countComponents() <= components) { changed = true; break; }
+                    grid_.at(p.first, p.second) = Cell::Path;
+                }
+            }
+        }
+    }
+}
+
 void MapGenerator::autotilePathsUnified() {
     for (int x = 0; x < grid_.width; ++x) {
         for (int y = 0; y < grid_.height; ++y) {
@@ -509,7 +700,7 @@ void MapGenerator::autotilePathsUnified() {
                     t = TileType::PATH_ARROW;
                 } else {
                     t = TileType::PATH_T_JUNCTION;
-                    t.rotation = singleAngle(!n, !e, !s);
+                    t.rotation = singleAngle(!s, !w, !n);
                 }
             } else if (count == 2) {
                 bool vertical = n && s;
@@ -616,7 +807,6 @@ void MapGenerator::placeDecorations() {
     const Tile outdoorProps[] = {
         TileType::PROP_BUSH, TileType::PROP_BUSH,
         TileType::PROP_GRASS_TUFT, TileType::PROP_GRASS_TUFT, TileType::PROP_GRASS_TUFT,
-        TileType::OBJECT_SMALL_CRATE_WOODEN, TileType::OBJECT_SMALL_BARREL_TOP
     };
     std::uniform_int_distribution propPick(0, (int)(sizeof(outdoorProps) / sizeof(Tile)) - 1);
 
@@ -692,7 +882,13 @@ void MapGenerator::placeDecorations() {
         Point keepClear{-1, -1};
         for (auto& d : doors_) {
             if (d.x >= h.x && d.x <= h.right() && d.y >= h.y && d.y <= h.bottom()) {
-                keepClear = (d.y == h.bottom()) ? Point{d.x, d.y - 1} : Point{d.x, d.y + 1};
+                constexpr int DX[4] = {0, 1, 0, -1};
+                constexpr int DY[4] = {-1, 0, 1, 0};
+                for (int k = 0; k < 4; ++k) {
+                    const int nx = d.x + DX[k], ny = d.y + DY[k];
+                    if (grid_.inBounds(nx, ny) && grid_.at(nx, ny) == Cell::HouseFloor)
+                        keepClear = {nx, ny};
+                }
             }
         }
 
@@ -716,7 +912,8 @@ void MapGenerator::placeDecorations() {
                     place(x, y, tableColumn ? TileType::OBJECT_TABLE : TileType::OBJECT_CHAIR);
                 }
             }
-            int bx = h.right() - 1, by = h.bottom() - 1;
+            int bx = h.right() - 1;
+            int by = h.bottom() - 1;
             if (grid_.at(bx, by) == Cell::HouseFloor && !(bx == keepClear.first && by == keepClear.second)) {
                 place(bx, by, TileType::OBJECT_BARRELS_CLUSTER_1);
             }
@@ -764,26 +961,25 @@ TileMap MapGenerator::build(const int height, const int width, const int seed) {
     playX1_ = border + width - 1;
     playY1_ = border + height - 1;
 
-    buildPerimeterFence();
-    placeTreeBorder();
+    buildMapBorder();
 
-    int dirtBottom = generateBaseTerrain();
-    int housesY0 = std::min(playY1_, std::max(playY0_, dirtBottom + 2));
+    generateBaseTerrain();
+    generateHouses();
 
-    generateHouses(housesY0);
     carveHouseFloors();
     connectAdjacentHouses();
 
     buildWalls();
     placeDoors();
 
-    isPromenade_.assign(totalWidth, std::vector<bool>(totalHeight, false));
+    isPromenade_.assign(totalWidth, std::vector(totalHeight, false));
     generateHousePaths();
-    generatePromenadePaths();
+    // generatePromenadePaths();
+    removePathBlocks();
     autotilePathsUnified();
 
-    generateRails();
-    placeDecorations();
+    // generateRails();
+    // placeDecorations();
 
     return assembleResult();
 }
