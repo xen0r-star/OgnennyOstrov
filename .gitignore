@@ -1,6 +1,7 @@
 /cmake-build-debug/
 /build/
 /bin/
+/obj/
 
 /.idea/
 /.vscode/
@@ -9,3 +10,6 @@
 
 .DS_Store
 Thumbs.db
+Goulag.cbp
+Goulag.depend
+Goulag.layout

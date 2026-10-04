@@ -1,0 +1,4 @@
+#ifndef GOULAG_GAME_SERVER_H
+#define GOULAG_GAME_SERVER_H
+
+#endif // GOULAG_GAME_SERVER_H
