@@ -1,5 +1,7 @@
-#include <iostream>
+#include "core/GameServer.h"
 
 int main() {
-  std::cout << "Hello World!" << std::endl;
+    GameServer server;
+    server.run();
+    return 0;
 }
