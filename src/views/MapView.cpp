@@ -102,7 +102,7 @@ void MapView::drawMap(sf::RenderWindow& window, const TileMap& map) {
 
     window.setView(view);
 
-    static constexpr int zPasses[] = { ZIndex::Ground, ZIndex::Structure, ZIndex::Decoration };
+    static constexpr int zPasses[] = { ZIndex::Layer0, ZIndex::Layer1, ZIndex::Layer2 };
 
     for (const int z : zPasses) {
         for (int i = 0; i < static_cast<int>(map.size()); ++i) {
