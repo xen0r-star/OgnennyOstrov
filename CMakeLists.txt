@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Goulag LANGUAGES CXX)
+project(OgnennyOstrov LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,31 +19,31 @@ file(GLOB_RECURSE SHARED_SOURCES CONFIGURE_DEPENDS
         "${SRC}/utils/*.cpp"
 )
 
-# Client
+# Client sources
 file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS
         "${SRC}/views/*.cpp"
         "${SRC}/controllers/client/*.cpp"
 )
 list(APPEND CLIENT_SOURCES "${SRC}/core/Game.cpp")
 
-# Server
+# Server sources
 file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS
         "${SRC}/controllers/server/*.cpp"
 )
 list(APPEND SERVER_SOURCES "${SRC}/core/GameServer.cpp")
 
 # ---------- Lib shared ----------
-add_library(GoulagShared STATIC ${SHARED_SOURCES})
-target_include_directories(GoulagShared PUBLIC ${SRC})
-target_link_libraries(GoulagShared PUBLIC sfml-system sfml-network)
+add_library(OgnennyOstrovShared STATIC ${SHARED_SOURCES})
+target_include_directories(OgnennyOstrovShared PUBLIC ${SRC})
+target_link_libraries(OgnennyOstrovShared PUBLIC sfml-system sfml-network)
 
-# ---------- Client ----------
-add_executable(GoulagClient ${SRC}/main.cpp ${CLIENT_SOURCES})
-target_link_libraries(GoulagClient PRIVATE GoulagShared sfml-graphics sfml-window)
+# ---------- Client (Exécutable principal : OgnennyOstrov) ----------
+add_executable(OgnennyOstrov ${SRC}/main.cpp ${CLIENT_SOURCES})
+target_link_libraries(OgnennyOstrov PRIVATE OgnennyOstrovShared sfml-graphics sfml-window)
 
 # ---------- Server ----------
-add_executable(GoulagServer ${SRC}/main_server.cpp ${SERVER_SOURCES})
-target_link_libraries(GoulagServer PRIVATE GoulagShared sfml-system sfml-network)
+add_executable(OgnennyOstrovServer ${SRC}/main_server.cpp ${SERVER_SOURCES})
+target_link_libraries(OgnennyOstrovServer PRIVATE OgnennyOstrovShared sfml-system sfml-network)
 
 # ---------- Post-build (Windows uniquement) ----------
 if(WIN32)
@@ -56,15 +56,15 @@ if(WIN32)
         endif()
     endfunction()
 
-    copy_sfml_dlls(GoulagClient)
-    copy_sfml_dlls(GoulagServer)
+    copy_sfml_dlls(OgnennyOstrov)
+    copy_sfml_dlls(OgnennyOstrovServer)
 
     # Assets copy for client
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
-        add_custom_command(TARGET GoulagClient POST_BUILD
+        add_custom_command(TARGET OgnennyOstrov POST_BUILD
                 COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${CMAKE_CURRENT_SOURCE_DIR}/assets"
-                "$<TARGET_FILE_DIR:GoulagClient>/assets"
+                "$<TARGET_FILE_DIR:OgnennyOstrov>/assets"
         )
     endif()
 endif()

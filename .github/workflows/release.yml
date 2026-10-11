@@ -24,15 +24,18 @@ jobs:
       - name: Generate Code::Blocks project file (.cbp)
         run: python tools/gen_cbp.py
 
-      - name: Create ZIP archive for Code::Blocks
+      - name: Create versioned ZIP for Code::Blocks
         run: |
-          zip -r OgnennyOstrov-CodeBlocks.zip OgnennyOstrov.cbp src deps assets docs README* LICENSE* -x "*.git*" "*.github*" "build/*" "obj/*" "bin/*" || true
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP_NAME="OgnennyOstrov-${GITHUB_REF_NAME}-CodeBlocks.zip"
+          zip -r "$ZIP_NAME" OgnennyOstrov.cbp src deps assets docs README* LICENSE* -x "*.git*" "*.github*" "build/*" "obj/*" "bin/*" || true
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Store artifact for release
         uses: actions/upload-artifact@v4
         with:
           name: release-asset-cbp
-          path: OgnennyOstrov-CodeBlocks.zip
+          path: OgnennyOstrov-*-CodeBlocks.zip
 
   # --- JOB 2: Build Linux Client & Server independently ---
   build-game-linux:
@@ -64,7 +67,7 @@ jobs:
             if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
             if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
             cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
-            cd ../dist-client && zip -r ../OgnennyOstrov-Client-Linux.zip *
+            cd ../dist-client && zip -r ../OgnennyOstrov-${GITHUB_REF_NAME}-Client-Linux.zip *
           } || echo "Client build failed"
 
       - name: Build and Package Server (Linux)
@@ -73,22 +76,22 @@ jobs:
           cmake --build . --target GoulagServer --config Release && {
             mkdir -p ../dist-server
             cp GoulagServer ../dist-server/ 2>/dev/null || cp bin/GoulagServer ../dist-server/ 2>/dev/null || true
-            if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
+            if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
             cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
-            cd ../dist-server && zip -r ../OgnennyOstrov-Server-Linux.zip *
+            cd ../dist-server && zip -r ../OgnennyOstrov-${GITHUB_REF_NAME}-Server-Linux.zip *
           } || echo "Server build failed (non-blocking)"
 
       - name: Store Linux Client artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-asset-client-linux
-          path: OgnennyOstrov-Client-Linux.zip
+          path: OgnennyOstrov-*-Client-Linux.zip
 
       - name: Store Linux Server artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-asset-server-linux
-          path: OgnennyOstrov-Server-Linux.zip
+          path: OgnennyOstrov-*-Server-Linux.zip
 
   # --- JOB 3: Build Windows Client & Server independently (MSYS2 MinGW) ---
   build-game-windows:
@@ -131,7 +134,8 @@ jobs:
       - name: Create Client ZIP (Windows)
         shell: pwsh
         run: |
-          Compress-Archive -Path "dist-client\*" -DestinationPath "OgnennyOstrov-Client-Windows.zip" -Force
+          $tag = $env:GITHUB_REF_NAME
+          Compress-Archive -Path "dist-client\*" -DestinationPath "OgnennyOstrov-$tag-Client-Windows.zip" -Force
 
       - name: Build and Package Server (Windows)
         shell: msys2 {0}
@@ -150,19 +154,20 @@ jobs:
       - name: Create Server ZIP (Windows)
         shell: pwsh
         run: |
-          Compress-Archive -Path "dist-server\*" -DestinationPath "OgnennyOstrov-Server-Windows.zip" -Force
+          $tag = $env:GITHUB_REF_NAME
+          Compress-Archive -Path "dist-server\*" -DestinationPath "OgnennyOstrov-$tag-Server-Windows.zip" -Force
 
       - name: Store Windows Client artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-asset-client-windows
-          path: OgnennyOstrov-Client-Windows.zip
+          path: OgnennyOstrov-*-Client-Windows.zip
 
       - name: Store Windows Server artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-asset-server-windows
-          path: OgnennyOstrov-Server-Windows.zip
+          path: OgnennyOstrov-*-Server-Windows.zip
 
   # --- JOB 4: Create GitHub Release and attach all available files ---
   publish-release:
@@ -174,38 +179,48 @@ jobs:
         continue-on-error: true
         with:
           name: release-asset-cbp
+          pattern: OgnennyOstrov-*-CodeBlocks.zip
+          merge-multiple: true
 
       - name: Download Linux Client ZIP
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: release-asset-client-linux
+          pattern: OgnennyOstrov-*-Client-Linux.zip
+          merge-multiple: true
 
       - name: Download Linux Server ZIP
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: release-asset-server-linux
+          pattern: OgnennyOstrov-*-Server-Linux.zip
+          merge-multiple: true
 
       - name: Download Windows Client ZIP
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: release-asset-client-windows
+          pattern: OgnennyOstrov-*-Client-Windows.zip
+          merge-multiple: true
 
       - name: Download Windows Server ZIP
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: release-asset-server-windows
+          pattern: OgnennyOstrov-*-Server-Windows.zip
+          merge-multiple: true
 
       - name: Create GitHub Release and attach files
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            OgnennyOstrov-CodeBlocks.zip
-            OgnennyOstrov-Client-Linux.zip
-            OgnennyOstrov-Server-Linux.zip
-            OgnennyOstrov-Client-Windows.zip
-            OgnennyOstrov-Server-Windows.zip
+            OgnennyOstrov-*-CodeBlocks.zip
+            OgnennyOstrov-*-Client-Linux.zip
+            OgnennyOstrov-*-Server-Linux.zip
+            OgnennyOstrov-*-Client-Windows.zip
+            OgnennyOstrov-*-Server-Windows.zip
           generate_release_notes: true
