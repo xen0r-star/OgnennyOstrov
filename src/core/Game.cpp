@@ -1,6 +1,5 @@
 #include "core/Game.h"
 
-#include <Windows.h>
 #include <SFML/Window/Event.hpp>
 #include <random>
 
@@ -8,17 +7,26 @@
 #include "../models/map/MapGenerator.h"
 #include "views/MapView.h"
 
+#ifdef _WIN32
+    #include <Windows.h>
+#endif
+
+Game::~Game() = default;
+
 Game::Game() {
-    window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Default);
+    #ifdef _WIN32
+        window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Default);
+        ShowWindow(window.getSystemHandle(), SW_MAXIMIZE);
+    #else
+        window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Fullscreen);
+    #endif
+
     window.setFramerateLimit(60);
 
-    ShowWindow(window.getSystemHandle(), SW_MAXIMIZE);
 
     std::random_device rd;
     map = MapGenerator::generateMap(50, 50, static_cast<int>(rd()));
 }
-
-Game::~Game() = default;
 
 void Game::run() {
     sf::Clock clock;
