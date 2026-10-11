@@ -73,6 +73,7 @@ jobs:
           cmake --build . --target GoulagServer --config Release && {
             mkdir -p ../dist-server
             cp GoulagServer ../dist-server/ 2>/dev/null || cp bin/GoulagServer ../dist-server/ 2>/dev/null || true
+            if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
             cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
             cd ../dist-server && zip -r ../OgnennyOstrov-Server-Linux.zip *
           } || echo "Server build failed (non-blocking)"
@@ -117,28 +118,39 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-          cmake --build . --target GoulagClient --config Release && {
-            mkdir -p ../dist-client
-            cp GoulagClient.exe ../dist-client/ 2>/dev/null || cp bin/GoulagClient.exe ../dist-client/ 2>/dev/null || true
-            if [ -d "../deps/SFML/bin" ]; then cp ../deps/SFML/bin/*.dll ../dist-client/ 2>/dev/null || true; fi
-            if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
-            if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
-            cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
-            cd ../dist-client && 7z a ../OgnennyOstrov-Client-Windows.zip *
-          } || echo "Windows Client build failed"
+          cmake --build . --target GoulagClient --config Release || true
+
+          mkdir -p ../dist-client
+          find . -name "GoulagClient.exe" -exec cp {} ../dist-client/ \;
+
+          if [ -d "../deps/SFML/bin" ]; then cp ../deps/SFML/bin/*.dll ../dist-client/ 2>/dev/null || true; fi
+          if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
+          if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
+          cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
+
+      - name: Create Client ZIP (Windows)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist-client\*" -DestinationPath "OgnennyOstrov-Client-Windows.zip" -Force
 
       - name: Build and Package Server (Windows)
         shell: msys2 {0}
         run: |
           cd build
-          cmake --build . --target GoulagServer --config Release && {
-            mkdir -p ../dist-server
-            cp GoulagServer.exe ../dist-server/ 2>/dev/null || cp bin/GoulagServer.exe ../dist-server/ 2>/dev/null || true
-            if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/ 2>/dev/null || true; fi
-            if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/ 2>/dev/null || true; fi
-            cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
-            cd ../dist-server && 7z a ../OgnennyOstrov-Server-Windows.zip *
-          } || echo "Windows Server build failed (non-blocking)"
+          cmake --build . --target GoulagServer --config Release || true
+
+          mkdir -p ../dist-server
+          find . -name "GoulagServer.exe" -exec cp {} ../dist-server/ \;
+
+          if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/ 2>/dev/null || true; fi
+          if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/ 2>/dev/null || true; fi
+          if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
+          cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
+
+      - name: Create Server ZIP (Windows)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist-server\*" -DestinationPath "OgnennyOstrov-Server-Windows.zip" -Force
 
       - name: Store Windows Client artifact
         uses: actions/upload-artifact@v4
