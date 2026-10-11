@@ -61,9 +61,9 @@ jobs:
       - name: Build and Package Client (Linux)
         run: |
           cd build
-          cmake --build . --target GoulagClient --config Release && {
+          cmake --build . --target OgnennyOstrov --config Release && {
             mkdir -p ../dist-client
-            cp GoulagClient ../dist-client/ 2>/dev/null || cp bin/GoulagClient ../dist-client/ 2>/dev/null || true
+            find . -name "OgnennyOstrov" -type f -exec cp {} ../dist-client/ \;
             if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
             if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
             cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
@@ -73,9 +73,9 @@ jobs:
       - name: Build and Package Server (Linux)
         run: |
           cd build
-          cmake --build . --target GoulagServer --config Release && {
+          cmake --build . --target OgnennyOstrovServer --config Release && {
             mkdir -p ../dist-server
-            cp GoulagServer ../dist-server/ 2>/dev/null || cp bin/GoulagServer ../dist-server/ 2>/dev/null || true
+            find . -name "OgnennyOstrovServer" -type f -exec cp {} ../dist-server/ \;
             if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
             cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
             cd ../dist-server && zip -r ../OgnennyOstrov-${GITHUB_REF_NAME}-Server-Linux.zip *
@@ -121,10 +121,10 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-          cmake --build . --target GoulagClient --config Release || true
+          cmake --build . --target OgnennyOstrov --config Release || true
 
           mkdir -p ../dist-client
-          find . -name "GoulagClient.exe" -exec cp {} ../dist-client/ \;
+          find . -name "OgnennyOstrov.exe" -exec cp {} ../dist-client/ \;
 
           if [ -d "../deps/SFML/bin" ]; then cp ../deps/SFML/bin/*.dll ../dist-client/ 2>/dev/null || true; fi
           if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
@@ -141,10 +141,10 @@ jobs:
         shell: msys2 {0}
         run: |
           cd build
-          cmake --build . --target GoulagServer --config Release || true
+          cmake --build . --target OgnennyOstrovServer --config Release || true
 
           mkdir -p ../dist-server
-          find . -name "GoulagServer.exe" -exec cp {} ../dist-server/ \;
+          find . -name "OgnennyOstrovServer.exe" -exec cp {} ../dist-server/ \;
 
           if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/ 2>/dev/null || true; fi
           if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/ 2>/dev/null || true; fi
