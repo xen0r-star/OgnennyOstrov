@@ -29,7 +29,7 @@ for p in sorted((root / "src").rglob("*")):
     if p.suffix == ".cpp":
         tg = targets_for(rel)
         if tg is None:
-            print(f"[!] ignoré (pas dans CMake) : {rel}")
+            print(f"[!] ignored (not in CMake): {rel}")
             continue
         opts = "\n".join(f'      <Option target="{t}" />' for t in tg)
         units.append(
@@ -41,4 +41,4 @@ for p in sorted((root / "src").rglob("*")):
         units.append(f'    <Unit filename="{rel}" />')
 
 (root / "OgnennyOstrov.cbp").write_text(tpl.replace("@@UNITS@@", "\n".join(units)), encoding="utf-8")
-print(f"OgnennyOstrov.cbp généré ({len(units)} fichiers)")
+print(f"OgnennyOstrov.cbp generated ({len(units)} files)")

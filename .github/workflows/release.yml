@@ -1,0 +1,151 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  # --- JOB 1: Package Code::Blocks project for the teacher ---
+  package-codeblocks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Generate Code::Blocks project file (.cbp)
+        run: python tools/gen_cbp.py
+
+      - name: Create ZIP archive for Code::Blocks
+        run: |
+          # Includes: .cbp, src, deps, assets, docs, README and LICENSE
+          zip -r OgnennyOstrov-CodeBlocks.zip OgnennyOstrov.cbp src deps assets docs README* LICENSE* -x "*.git*" "*.github*" "build/*" "obj/*" "bin/*" || true
+
+      - name: Store artifact for release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-cbp
+          path: OgnennyOstrov-CodeBlocks.zip
+
+  # --- JOB 2: Build official Linux game version ---
+  build-game-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies (SFML, CMake, etc.)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libsfml-dev
+
+      - name: Build project with CMake (Linux)
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . --config Release
+
+      - name: Package Linux compiled game
+        run: |
+          mkdir -p dist
+          cp -r build/bin/* dist/ 2>/dev/null || cp build/OgnennyOstrov* dist/ 2>/dev/null || true
+          if [ -d "assets" ]; then cp -r assets dist/; fi
+          if [ -d "docs" ]; then cp -r docs dist/; fi
+          cp README* LICENSE* dist/ 2>/dev/null || true
+          cd dist && zip -r ../OgnennyOstrov-Game-Linux.zip *
+
+      - name: Store Linux game artifact for release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-game-linux
+          path: OgnennyOstrov-Game-Linux.zip
+
+  # --- JOB 3: Build official Windows game version with exact GCC 8.1.0 (Code::Blocks 20.03 match) ---
+  build-game-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download and Setup MinGW 8.1.0 (Nixman / Code::Blocks 20.03 match)
+        shell: pwsh
+        run: |
+          $url = "https://github.com/niXman/mingw-builds-binaries/releases/download/1.5.0-rt-v6-rev0/x86_64-8.1.0-release-posix-seh-rt_v6-rev0.7z"
+          # Alternative URL if needed, or we download the exact GCC 8.1.0 package:
+          $url = "https://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/8.1.0/threads-posix/seh/x86_64-8.1.0-release-posix-seh-rt_v6-rev0.7z"
+          
+          Write-Host "Downloading MinGW 8.1.0..."
+          Invoke-WebRequest -Uri $url -OutFile "mingw64.7z"
+          
+          Write-Host "Extracting MinGW 8.1.0..."
+          7z x mingw64.7z -oC:\ | Out-Null
+          
+          # Add to GITHUB_PATH
+          echo "C:\mingw64\bin" >> $env:GITHUB_PATH
+
+      - name: Build project with CMake (Windows)
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+          cmake --build . --config Release
+
+      - name: Package Windows compiled game
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp -r build/bin/* dist/ 2>/dev/null || cp build/*.exe dist/ 2>/dev/null || true
+          if [ -d "deps/SFML/bin" ]; then cp deps/SFML/bin/*.dll dist/ 2>/dev/null || true; fi
+          if [ -d "assets" ]; then cp -r assets dist/; fi
+          if [ -d "docs" ]; then cp -r docs dist/; fi
+          cp README* LICENSE* dist/ 2>/dev/null || true
+          7z a OgnennyOstrov-Game-Windows.zip ./dist/*
+
+      - name: Store Windows game artifact for release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-game-windows
+          path: OgnennyOstrov-Game-Windows.zip
+
+  # --- JOB 4: Create single GitHub Release and attach all files ---
+  publish-release:
+    needs: [package-codeblocks, build-game-linux, build-game-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Code::Blocks ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: release-asset-cbp
+
+      - name: Download Linux Game ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: release-asset-game-linux
+
+      - name: Download Windows Game ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: release-asset-game-windows
+
+      - name: Create GitHub Release and attach all files
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            OgnennyOstrov-CodeBlocks.zip
+            OgnennyOstrov-Game-Linux.zip
+            OgnennyOstrov-Game-Windows.zip
+          generate_release_notes: true
