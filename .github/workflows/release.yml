@@ -34,7 +34,7 @@ jobs:
           name: release-asset-cbp
           path: OgnennyOstrov-CodeBlocks.zip
 
-  # --- JOB 2: Build official Linux game version ---
+  # --- JOB 2: Build Linux Client & Server independently ---
   build-game-linux:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -49,29 +49,47 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake libsfml-dev
 
-      - name: Build project with CMake (Linux)
+      - name: Configure CMake (Linux)
         run: |
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release ..
-          cmake --build . --config Release
 
-      - name: Package Linux compiled game
+      - name: Build and Package Client (Linux)
         run: |
-          mkdir -p dist
-          cp -r build/bin/* dist/ 2>/dev/null || cp build/OgnennyOstrov* dist/ 2>/dev/null || true
-          if [ -d "assets" ]; then cp -r assets dist/; fi
-          if [ -d "docs" ]; then cp -r docs dist/; fi
-          cp README* LICENSE* dist/ 2>/dev/null || true
-          cd dist && zip -r ../OgnennyOstrov-Game-Linux.zip *
+          cd build
+          cmake --build . --target GoulagClient --config Release && {
+            mkdir -p ../dist-client
+            cp GoulagClient ../dist-client/ 2>/dev/null || cp bin/GoulagClient ../dist-client/ 2>/dev/null || true
+            if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
+            if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
+            cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
+            cd ../dist-client && zip -r ../OgnennyOstrov-Client-Linux.zip *
+          } || echo "Client build failed"
 
-      - name: Store Linux game artifact for release
+      - name: Build and Package Server (Linux)
+        run: |
+          cd build
+          cmake --build . --target GoulagServer --config Release && {
+            mkdir -p ../dist-server
+            cp GoulagServer ../dist-server/ 2>/dev/null || cp bin/GoulagServer ../dist-server/ 2>/dev/null || true
+            cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
+            cd ../dist-server && zip -r ../OgnennyOstrov-Server-Linux.zip *
+          } || echo "Server build failed (non-blocking)"
+
+      - name: Store Linux Client artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-asset-game-linux
-          path: OgnennyOstrov-Game-Linux.zip
+          name: release-asset-client-linux
+          path: OgnennyOstrov-Client-Linux.zip
 
-  # --- JOB 3: Build official Windows game version (MSYS2 MinGW) ---
+      - name: Store Linux Server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-server-linux
+          path: OgnennyOstrov-Server-Linux.zip
+
+  # --- JOB 3: Build Windows Client & Server independently (MSYS2 MinGW) ---
   build-game-windows:
     runs-on: windows-latest
     continue-on-error: true
@@ -88,32 +106,53 @@ jobs:
           update: true
           install: git mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake make
 
-      - name: Build project with CMake (Windows)
+      - name: Configure CMake (Windows)
         shell: msys2 {0}
         run: |
           mkdir build
           cd build
           cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release ..
-          cmake --build . --config Release
 
-      - name: Package Windows compiled game
-        shell: bash
+      - name: Build and Package Client (Windows)
+        shell: msys2 {0}
         run: |
-          mkdir -p dist
-          cp -r build/bin/* dist/ 2>/dev/null || cp build/*.exe dist/ 2>/dev/null || true
-          if [ -d "deps/SFML/bin" ]; then cp deps/SFML/bin/*.dll dist/ 2>/dev/null || true; fi
-          if [ -d "assets" ]; then cp -r assets dist/; fi
-          if [ -d "docs" ]; then cp -r docs dist/; fi
-          cp README* LICENSE* dist/ 2>/dev/null || true
-          7z a OgnennyOstrov-Game-Windows.zip ./dist/*
+          cd build
+          cmake --build . --target GoulagClient --config Release && {
+            mkdir -p ../dist-client
+            cp GoulagClient.exe ../dist-client/ 2>/dev/null || cp bin/GoulagClient.exe ../dist-client/ 2>/dev/null || true
+            if [ -d "../deps/SFML/bin" ]; then cp ../deps/SFML/bin/*.dll ../dist-client/ 2>/dev/null || true; fi
+            if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
+            if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
+            cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
+            cd ../dist-client && 7z a ../OgnennyOstrov-Client-Windows.zip *
+          } || echo "Windows Client build failed"
 
-      - name: Store Windows game artifact for release
+      - name: Build and Package Server (Windows)
+        shell: msys2 {0}
+        run: |
+          cd build
+          cmake --build . --target GoulagServer --config Release && {
+            mkdir -p ../dist-server
+            cp GoulagServer.exe ../dist-server/ 2>/dev/null || cp bin/GoulagServer.exe ../dist-server/ 2>/dev/null || true
+            if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/ 2>/dev/null || true; fi
+            if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/ 2>/dev/null || true; fi
+            cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
+            cd ../dist-server && 7z a ../OgnennyOstrov-Server-Windows.zip *
+          } || echo "Windows Server build failed (non-blocking)"
+
+      - name: Store Windows Client artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-asset-game-windows
-          path: OgnennyOstrov-Game-Windows.zip
+          name: release-asset-client-windows
+          path: OgnennyOstrov-Client-Windows.zip
 
-  # --- JOB 4: Create GitHub Release and attach available files ---
+      - name: Store Windows Server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-server-windows
+          path: OgnennyOstrov-Server-Windows.zip
+
+  # --- JOB 4: Create GitHub Release and attach all available files ---
   publish-release:
     needs: [package-codeblocks, build-game-linux, build-game-windows]
     runs-on: ubuntu-latest
@@ -124,23 +163,37 @@ jobs:
         with:
           name: release-asset-cbp
 
-      - name: Download Linux Game ZIP
+      - name: Download Linux Client ZIP
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: release-asset-game-linux
+          name: release-asset-client-linux
 
-      - name: Download Windows Game ZIP
+      - name: Download Linux Server ZIP
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: release-asset-game-windows
+          name: release-asset-server-linux
+
+      - name: Download Windows Client ZIP
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: release-asset-client-windows
+
+      - name: Download Windows Server ZIP
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: release-asset-server-windows
 
       - name: Create GitHub Release and attach files
         uses: softprops/action-gh-release@v2
         with:
           files: |
             OgnennyOstrov-CodeBlocks.zip
-            OgnennyOstrov-Game-Linux.zip
-            OgnennyOstrov-Game-Windows.zip
+            OgnennyOstrov-Client-Linux.zip
+            OgnennyOstrov-Server-Linux.zip
+            OgnennyOstrov-Client-Windows.zip
+            OgnennyOstrov-Server-Windows.zip
           generate_release_notes: true
