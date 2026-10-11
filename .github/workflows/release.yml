@@ -50,7 +50,7 @@ jobs:
       - name: Install dependencies (SFML, CMake, etc.)
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake libsfml-dev patchelf
+          sudo apt-get install -y cmake libsfml-dev libstb0 patchelf
 
       - name: Configure CMake (Linux)
         run: |
@@ -65,13 +65,12 @@ jobs:
             mkdir -p ../dist-client
             find . -name "OgnennyOstrov" -type f -exec cp {} ../dist-client/ \;
           
-            # Copier les fichiers .so SFML nécessaires pour le client
             cp /usr/lib/x86_64-linux-gnu/libsfml-graphics.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libsfml-window.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libsfml-system.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-client/ 2>/dev/null || true
+            cp /usr/lib/x86_64-linux-gnu/libstb.so.* ../dist-client/ 2>/dev/null || true
           
-            # Forcer le binaire à chercher ses .so dans son propre dossier ($ORIGIN)
             patchelf --set-rpath '$ORIGIN' ../dist-client/OgnennyOstrov
           
             if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
@@ -87,11 +86,9 @@ jobs:
             mkdir -p ../dist-server
             find . -name "OgnennyOstrovServer" -type f -exec cp {} ../dist-server/ \;
           
-            # Copier les fichiers .so SFML nécessaires pour le serveur (system & network)
             cp /usr/lib/x86_64-linux-gnu/libsfml-system.so.* ../dist-server/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-server/ 2>/dev/null || true
           
-            # Forcer le binaire serveur à chercher ses .so localement
             patchelf --set-rpath '$ORIGIN' ../dist-server/OgnennyOstrovServer
           
             if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
