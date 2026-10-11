@@ -1,46 +1,32 @@
 #include "models/map/MapGenerator.h"
 
-#include "models/map/generation/MapTypes.h"
-#include "models/map/generation/TileMapUtils.h"
-#include "models/map/generation/BorderGenerator.h"
-#include "models/map/generation/TerrainGenerator.h"
-#include "models/map/generation/HouseLayout.h"
-#include "models/map/generation/HouseStructure.h"
-#include "models/map/generation/PathGenerator.h"
-#include "models/map/generation/RailGenerator.h"
-#include "models/map/generation/DecorationGenerator.h"
-
 TileMap MapGenerator::generateMap(const int height, const int width, const unsigned int seed) {
-    using namespace MapGen;
+    TileMap map;
+    std::mt19937 rng(seed);
 
     constexpr int margin = 5;
     constexpr int border = margin + 1;
 
-    Rng rng(seed);
-    TileMap map = initMap(width + 2 * border, height + 2 * border);
+    initMap(map, height + 2 * border, width + 2 * border);
+    buildMapBorder(map, rng, margin);
 
-    const Rect play {
+    const Rect playZone {
         .x = border, .y = border,
-        .w = width, .h = height
+        .w = width,  .h = height
     };
 
-    buildMapBorder(map, rng, margin);
-    generateBaseTerrain(map, rng, play);
+    addGuardPaths(map, rng, playZone);
+    addRailPaths(map, rng, playZone);
+    buildHouseFloors(map, rng, playZone);
+    buildDirtZones(map, rng, playZone);
 
-    // const std::vector<House> houses = generateHouses(map, rng, play);
-    // carveHouseFloors(map, rng, houses);
-    // connectAdjacentHouses(map, rng, houses);
-    // buildWalls(map, rng, houses);
-    // placeDoors(map, rng, houses);
+    correctionsGuardPaths(map, rng, playZone);
 
-    // generateHousePaths(map);
-    // generatePromenadePaths(map, rng, play);
-    // removePathBlocks(map);
-    // autotilePathsUnified(map);
+    buildHouseWalls(map, rng, playZone);
+    addHousePaths(map, rng, playZone);
+    addHouseDoors(map, rng, playZone);
 
-    // generateRails(map, rng, play);
-    // placeDecorations(map, rng, play, houses);
+    addDecorations(map, rng, playZone);
 
-    sortLayers(map);
     return map;
 }

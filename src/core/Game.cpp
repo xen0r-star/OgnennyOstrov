@@ -15,7 +15,7 @@ Game::Game() {
     ShowWindow(window.getSystemHandle(), SW_MAXIMIZE);
 
     std::random_device rd;
-    map = MapGenerator::generateMap(50, 50, static_cast<int>(rd()));
+    map = MapGenerator::generateMap(65, 65, static_cast<int>(rd()));
 }
 
 Game::~Game() = default;
@@ -38,9 +38,6 @@ void Game::processEvents() {
         if (event.type == sf::Event::Closed) {
             window.close();
         }
-
-        // For testing
-        mapView.handleEvent(event, window);
 
         // Input Controller
     }

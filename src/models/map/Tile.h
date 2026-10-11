@@ -3,67 +3,58 @@
 
 #include <vector>
 
-enum Angle {
-    ANGLE_0,
-    ANGLE_90,
-    ANGLE_180,
-    ANGLE_270
-};
+namespace Map {
+    struct Texture {
+        int col = 0;
+        int row = 0;
 
-enum TileType {
-    NONE,
-    GRASS,
-    DIRT,
-    HOUSE,
-    OPENING,
-    WALL,
-    DOOR,
-    PATH,
-    RAIL,
-    DECORATION
-};
+        explicit constexpr Texture(const int col = 0, const int row = 0) {
+            this->col = col;
+            this->row = row;
+        }
+    };
 
-struct Tile {
-    int col = 0;
-    int row = 0;
-    Angle rotation = ANGLE_0;
-    TileType type = NONE;
-
-    explicit constexpr Tile(
-        const int col = 0, const int row = 0,
-        const TileType type = NONE, const Angle rotation = ANGLE_0
-    ) {
-        this->col = col;
-        this->row = row;
-        this->type = type;
-        this->rotation = rotation;
+    namespace ZIndex {
+        inline constexpr int Layer0 = 0;
+        inline constexpr int Layer1 = 10;
+        inline constexpr int Layer2 = 20;
+        inline constexpr int Layer3 = 30;
     }
-};
 
-namespace ZIndex {
-    inline constexpr int Layer0 = 0;
-    inline constexpr int Layer1 = 10;
-    inline constexpr int Layer2 = 20;
-    inline constexpr int Layer3 = 30;
+    struct Modifier {
+        float offsetX = 0.f;
+        float offsetY = 0.f;
+        float scale   = 1.f;
+        int rotation  = 0;
+    };
+
+    struct Tile {
+        Texture texture = Texture();
+        int zIndex = ZIndex::Layer0;
+        Modifier modifier;
+
+        explicit constexpr Tile(
+            const Texture texture = Texture(),
+            const int zIndex = ZIndex::Layer0,
+            const Modifier modifier = Modifier()
+        ) {
+            this->texture = texture;
+            this->zIndex = zIndex;
+            this->modifier = modifier;
+        }
+    };
 }
-
-struct TileVariation {
-    float offsetX = 0.f;
-    float offsetY = 0.f;
-    float scale   = 1.f;
-};
-
-struct LayerTile {
-    Tile tile;
-    int z = ZIndex::Layer0;
-    TileVariation var;
-};
 
 
 struct MapCell {
-    std::vector<LayerTile> layers;
+    std::vector<Map::Tile> layers;
 };
 
-using TileMap = std::vector<std::vector<MapCell>>;
+struct TileMap {
+    int height = 0;
+    int width = 0;
+
+    std::vector<std::vector<MapCell>> cells = std::vector<std::vector<MapCell>>();
+};
 
 #endif // GOULAG_TILE_H
