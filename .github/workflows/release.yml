@@ -112,6 +112,18 @@ jobs:
             cd ../dist-server && zip -r ../OgnennyOstrov-${GITHUB_REF_NAME}-Server-Linux.zip *
           } || echo "Server build failed (non-blocking)"
 
+      - name: Smoke test Linux client (launch and check no crash)
+        run: |
+          if ls OgnennyOstrov-*-Client-Linux.zip >/dev/null 2>&1; then
+            sudo apt-get install -y xvfb
+            mkdir test-client
+            unzip -q OgnennyOstrov-*-Client-Linux.zip -d test-client
+            cd test-client
+            timeout 5 xvfb-run -a ./OgnennyOstrov || [ $? -eq 124 ] || { echo "::error::Client crashed"; exit 1; }
+          else
+            echo "No Linux client zip, skipping smoke test"
+          fi
+
       - name: Store Linux Client artifact
         uses: actions/upload-artifact@v4
         with:
@@ -187,6 +199,15 @@ jobs:
         run: |
           $tag = $env:GITHUB_REF_NAME
           Compress-Archive -Path "dist-server\*" -DestinationPath "OgnennyOstrov-$tag-Server-Windows.zip" -Force
+
+      - name: Smoke test Windows client
+        shell: pwsh
+        run: |
+          Expand-Archive OgnennyOstrov-*-Client-Windows.zip -DestinationPath test-client
+          $p = Start-Process test-client\OgnennyOstrov.exe -WorkingDirectory test-client -PassThru
+          Start-Sleep 5
+          if ($p.HasExited) { Write-Error "Client crashed (code $($p.ExitCode))"; exit 1 }
+          Stop-Process $p
 
       - name: Store Windows Client artifact
         uses: actions/upload-artifact@v4
