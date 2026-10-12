@@ -1,3 +1,8 @@
+## ========================================================== ##
+## Workflow created by @xen0r-star                            ##
+## Original repo: https://github.com/xen0r-star/OgnennyOstrov ##
+## ========================================================== ##
+
 name: Build and Release
 
 on:
