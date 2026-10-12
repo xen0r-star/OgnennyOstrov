@@ -204,9 +204,14 @@ jobs:
         shell: pwsh
         run: |
           Expand-Archive OgnennyOstrov-*-Client-Windows.zip -DestinationPath test-client
-          $p = Start-Process test-client\OgnennyOstrov.exe -WorkingDirectory test-client -PassThru
+          $p = Start-Process test-client\OgnennyOstrov.exe -WorkingDirectory test-client -PassThru `
+            -RedirectStandardOutput out.txt -RedirectStandardError err.txt
           Start-Sleep 5
-          if ($p.HasExited) { Write-Error "Client crashed (code $($p.ExitCode))"; exit 1 }
+          if ($p.HasExited) {
+            Write-Host "--- stdout ---"; Get-Content out.txt
+            Write-Host "--- stderr ---"; Get-Content err.txt
+            Write-Error "Client crashed (code $($p.ExitCode))"; exit 1
+          }
           Stop-Process $p
 
       - name: Store Windows Client artifact
