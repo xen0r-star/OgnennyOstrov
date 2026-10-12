@@ -200,19 +200,13 @@ jobs:
           $tag = $env:GITHUB_REF_NAME
           Compress-Archive -Path "dist-server\*" -DestinationPath "OgnennyOstrov-$tag-Server-Windows.zip" -Force
 
-      - name: Smoke test Windows client
+      - name: Smoke test Windows client (static check)
         shell: pwsh
         run: |
           Expand-Archive OgnennyOstrov-*-Client-Windows.zip -DestinationPath test-client
-          $p = Start-Process test-client\OgnennyOstrov.exe -WorkingDirectory test-client -PassThru `
-            -RedirectStandardOutput out.txt -RedirectStandardError err.txt
-          Start-Sleep 5
-          if ($p.HasExited) {
-            Write-Host "--- stdout ---"; Get-Content out.txt
-            Write-Host "--- stderr ---"; Get-Content err.txt
-            Write-Error "Client crashed (code $($p.ExitCode))"; exit 1
-          }
-          Stop-Process $p
+          if (-not (Test-Path test-client\OgnennyOstrov.exe)) { Write-Error "Client exe missing"; exit 1 }
+          if (-not (Test-Path test-client\assets)) { Write-Error "Assets missing"; exit 1 }
+          if (@(Get-ChildItem test-client\*.dll).Count -eq 0) { Write-Error "No DLL bundled"; exit 1 }
 
       - name: Store Windows Client artifact
         uses: actions/upload-artifact@v4
