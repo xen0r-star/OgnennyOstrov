@@ -71,7 +71,15 @@ jobs:
             cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libstb.so.* ../dist-client/ 2>/dev/null || true
           
-            patchelf --set-rpath '$ORIGIN' ../dist-client/OgnennyOstrov
+            patchelf --force-rpath --set-rpath '$ORIGIN' ../dist-client/OgnennyOstrov
+            for f in ../dist-client/*.so*; do
+              [ -L "$f" ] || patchelf --set-rpath '$ORIGIN' "$f"
+            done
+          
+            if ldd ../dist-client/OgnennyOstrov | grep "not found"; then
+              echo "::error::Missing dependency in dist-client"
+              exit 1
+            fi
           
             if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
             if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
@@ -89,7 +97,15 @@ jobs:
             cp /usr/lib/x86_64-linux-gnu/libsfml-system.so.* ../dist-server/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-server/ 2>/dev/null || true
           
-            patchelf --set-rpath '$ORIGIN' ../dist-server/OgnennyOstrovServer
+            patchelf --force-rpath --set-rpath '$ORIGIN' ../dist-server/OgnennyOstrovServer
+            for f in ../dist-server/*.so*; do
+              [ -L "$f" ] || patchelf --set-rpath '$ORIGIN' "$f"
+            done
+          
+            if ldd ../dist-server/OgnennyOstrovServer | grep "not found"; then
+              echo "::error::Missing dependency in dist-server"
+              exit 1
+            fi
           
             if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
             cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
