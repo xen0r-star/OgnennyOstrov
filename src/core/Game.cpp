@@ -8,7 +8,7 @@
 #include "../models/map/MapGenerator.h"
 #include "views/MapView.h"
 
-Game::Game() {
+Game::Game() : prisoner(sf::Vector2f(3720.f, 3720.f)){
     window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Default);
     window.setFramerateLimit(60);
 
@@ -39,19 +39,26 @@ void Game::processEvents() {
             window.close();
         }
 
-        // For testing
-        mapView.handleEvent(event, window);
-
-        // Input Controller
+        if (event.type == sf::Event::Resized) {
+            camera.setSize(static_cast<float>(event.size.width),
+                           static_cast<float>(event.size.height));
+            camera.zoom(1.5f);
+        }
     }
 }
 
 void Game::update(sf::Time deltaTime) {
-    // Player Move update
+    playerController.update(prisoner);
+    prisoner.update(deltaTime, map);
 }
 
 void Game::render() {
     window.clear(sf::Color(30, 30, 30));
+
+    camera.setCenter(prisoner.getPosition());
+    window.setView(camera);
+
     mapView.drawMap(window, map);
+    prisonerView.draw(window, prisoner);
     window.display();
 }

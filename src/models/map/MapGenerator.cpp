@@ -6,6 +6,134 @@
 #include <cmath>
 #include <queue>
 #include <tuple>
+#include <initializer_list>
+
+
+namespace {
+
+// Compare deux tuiles (même position dans map.png, on ignore la rotation)
+bool isTile(const Tile& a, const Tile& b) {
+    return a.col == b.col && a.row == b.row;
+}
+
+// Construit un masque à partir d'un dessin : '#' = bloqué, '.' = libre (MASK_SIZE lignes)
+CollisionMask makeMask(std::initializer_list<const char*> rows) {
+    CollisionMask m{};
+    int y = 0;
+    for (const char* row : rows) {
+        for (int x = 0; x < MASK_SIZE; ++x) {
+            m[y * MASK_SIZE + x] = (row[x] == '#');
+        }
+        ++y;
+    }
+    return m;
+}
+
+// Masque entièrement bloqué (barbelés, tours, arbres, objets)
+CollisionMask fullMask() {
+    CollisionMask m{};
+    m.fill(true);
+    return m;
+}
+
+// Objets qui bloquent le passage MAIS PAS la vue (règles : tables et caisses)
+bool isObstacleObject(const Tile& t) {
+    using namespace TileType;
+    return isTile(t, OBJECT_LARGE_CRATE_WOODEN) || isTile(t, OBJECT_SMALL_CRATE_WOODEN)
+        || isTile(t, OBJECT_LARGE_BARREL_TOP)   || isTile(t, OBJECT_SMALL_BARREL_TOP)
+        || isTile(t, OBJECT_BARRELS_CLUSTER_1)  || isTile(t, OBJECT_BARRELS_CLUSTER_2)
+        || isTile(t, OBJECT_TABLE)              || isTile(t, OBJECT_CHAIR)
+        || isTile(t, OBJECT_BED)                || isTile(t, OBJECT_BED_2)
+        || isTile(t, OBJECT_BOARD)              || isTile(t, CART_WOODEN)
+        || isTile(t, PROP_CAMPFIRE);
+}
+
+// Masque DÉPLACEMENT d'une tuile non tournée (bande du mur en haut)
+// Chaque dessin fait 6 x 6 : une colonne/ligne = 20 px. '#' = bloqué.
+CollisionMask moveMaskOf(const Tile& t) {
+    using namespace TileType;
+    if (isTile(t, WALL_BARBED_WIRE) || isTile(t, WATCHTOWER) || isTile(t, PROP_TREE))
+        return fullMask();
+
+    if (isTile(t, WALL_STRAIGHT) || isTile(t, WALL_WINDOWS) || isTile(t, WALL_WEAK)
+        || isTile(t, WALL_STRAIGHT_SHORT))
+        return makeMask({ "######",
+                          "######",
+                          "......",
+                          "......",
+                          "......",
+                          "......" });
+
+    if (isTile(t, WALL_CORNER_OUTER))
+        return makeMask({ "######",
+                          "######",
+                          "##....",
+                          "##....",
+                          "##....",
+                          "##...." });
+
+    if (isTile(t, WALL_CORNER_INNER))
+        return makeMask({ "##....",
+                          "##....",
+                          "......",
+                          "......",
+                          "......",
+                          "......" });
+
+    if (isTile(t, WALL_DOORWAY_OPEN))          // 2 montants + battant ouvert à droite
+        return makeMask({ "#....#",
+                          "#....#",
+                          ".....#",
+                          ".....#",
+                          ".....#",
+                          ".....#" });
+
+    if (isTile(t, WALL_DOOR_FRAME) || isTile(t, WALL_BROKEN_DOOR))   // juste les 2 montants
+        return makeMask({ "#....#",
+                          "#....#",
+                          "......",
+                          "......",
+                          "......",
+                          "......" });
+
+    if (isTile(t, WALL_DOORWAY_CLOSE))         // porte fermée : le bois bouche le trou
+        return makeMask({ "######",
+                          "#....#",
+                          "......",
+                          "......",
+                          "......",
+                          "......" });
+
+    if (isObstacleObject(t)) return fullMask();
+    return {};   // sol, herbe, chemin, buisson... : rien de bloqué
+}
+
+// Masque VUE d'une tuile non tournée
+CollisionMask sightMaskOf(const Tile& t) {
+    if (isObstacleObject(t)) return {};   // tables, caisses : on voit et on tire par-dessus
+    return moveMaskOf(t);                 // murs, portes : identique au déplacement
+}
+
+// Tourne un masque comme la tuile (quart de tour horaire : (x, y) -> (MASK_SIZE - 1 - y, x))
+CollisionMask rotateMask(const CollisionMask& m, const Angle rot) {
+    CollisionMask out = m;
+    for (int k = 0; k < static_cast<int>(rot); ++k) {        // ANGLE_0=0 ... ANGLE_270=3 quarts de tour
+        CollisionMask next{};
+        for (int y = 0; y < MASK_SIZE; ++y) {
+            for (int x = 0; x < MASK_SIZE; ++x) {
+                if (out[y * MASK_SIZE + x]) {
+                    const int newX = MASK_SIZE - 1 - y;
+                    const int newY = x;
+                    next[newY * MASK_SIZE + newX] = true;
+                }
+            }
+        }
+        out = next;
+    }
+    return out;
+}
+
+} // namespace
 
 MapGenerator::MapGenerator() = default;
 MapGenerator::~MapGenerator() = default;
@@ -935,16 +1063,42 @@ void MapGenerator::placeDecorations() {
 
 TileMap MapGenerator::assembleResult() const {
     TileMap result(grid_.width, std::vector<MapCell>(grid_.height));
+
     for (int x = 0; x < grid_.width; ++x) {
         for (int y = 0; y < grid_.height; ++y) {
             auto layers = tiles_[x][y].layers;
             std::stable_sort(layers.begin(), layers.end(),
-                              [](const LayerTile& a, const LayerTile& b) { return a.z < b.z; });
-            result[x][y].layers = std::move(layers);
+                             [](const LayerTile& a, const LayerTile& b) { return a.z < b.z; });
+
+            MapCell& cell = result[x][y];
+
+            // Une case = plusieurs couches (sol + mur + déco).
+            // Si UNE couche bloque une sous-case, la case la bloque (OU logique).
+            for (const auto& layer : layers) {
+                const CollisionMask move  = rotateMask(moveMaskOf(layer.tile),  layer.tile.rotation);
+                const CollisionMask sight = rotateMask(sightMaskOf(layer.tile), layer.tile.rotation);
+                for (std::size_t i = 0; i < cell.blocksMovement.size(); ++i) {
+                    cell.blocksMovement[i] = cell.blocksMovement[i] || move[i];
+                    cell.blocksSight[i]    = cell.blocksSight[i]    || sight[i];
+                }
+                if (isTile(layer.tile, TileType::PROP_BUSH)) {
+                    cell.hides = true;
+                }
+            }
+
+            // Forêt autour du camp : Cell::Wall mais souvent sans tuile (ou juste un buisson)
+            // → on bloque tout, sinon on pourrait sortir de la carte par la forêt
+            if (grid_.at(x, y) == Cell::Wall && cell.blocksMovement == CollisionMask{}) {
+                cell.blocksMovement.fill(true);
+                cell.blocksSight.fill(true);
+            }
+
+            cell.layers = std::move(layers);
         }
     }
     return result;
 }
+
 
 TileMap MapGenerator::build(const int height, const int width, const int seed) {
     rng_ = std::mt19937(static_cast<unsigned int>(seed));

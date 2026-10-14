@@ -36,7 +36,12 @@ target_include_directories(GoulagShared PUBLIC ${SRC})
 target_link_libraries(GoulagShared PUBLIC sfml-system sfml-network)
 
 # ---------- Client ----------
-add_executable(GoulagClient ${SRC}/main.cpp ${CLIENT_SOURCES})
+add_executable(GoulagClient ${SRC}/main.cpp ${CLIENT_SOURCES}
+        src/views/PrisonerView.cpp
+        src/views/PrisonerView.h
+        src/controllers/client/PlayerController.cpp
+        src/controllers/client/PlayerController.h)
+
 target_link_libraries(GoulagClient PRIVATE GoulagShared sfml-graphics sfml-window)
 
 # ---------- Server ----------

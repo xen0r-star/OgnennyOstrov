@@ -5,6 +5,8 @@
 #include <random>
 #include <utility>
 #include <vector>
+#include <array>
+#include "core/Config.h"   // pour MASK_SIZE
 
 enum Angle {
     ANGLE_0,
@@ -12,6 +14,7 @@ enum Angle {
     ANGLE_180,
     ANGLE_270
 };
+
 
 struct Tile {
     int col = 0;
@@ -34,8 +37,14 @@ struct LayerTile {
     int z = ZIndex::Ground;
 };
 
+// MASK_SIZE x MASK_SIZE sous-cases par case, index = sousY * MASK_SIZE + sousX
+using CollisionMask = std::array<bool, MASK_SIZE * MASK_SIZE>;
+
 struct MapCell {
     std::vector<LayerTile> layers;
+    CollisionMask blocksMovement{};   // {} = tout à false : rien ne bloque
+    CollisionMask blocksSight{};      // pour le cône des gardiens et les tirs (plus tard)
+    bool hides = false;
 };
 
 namespace TileType {
