@@ -33,10 +33,14 @@ list(APPEND SERVER_SOURCES "${SRC}/core/GameServer.cpp")
 # ---------- Lib shared ----------
 add_library(GoulagShared STATIC ${SHARED_SOURCES})
 target_include_directories(GoulagShared PUBLIC ${SRC})
-target_link_libraries(GoulagShared PUBLIC sfml-system sfml-network)
+target_link_libraries(GoulagShared PUBLIC sfml-system sfml-network sfml-audio)
 
 # ---------- Client ----------
-add_executable(GoulagClient ${SRC}/main.cpp ${CLIENT_SOURCES})
+add_executable(GoulagClient ${SRC}/main.cpp ${CLIENT_SOURCES}
+        src/views/MenuView.cpp
+        src/views/MenuView.h
+        src/views/OptionsView.cpp
+        src/core/Settings.cpp)
 target_link_libraries(GoulagClient PRIVATE GoulagShared sfml-graphics sfml-window)
 
 # ---------- Server ----------

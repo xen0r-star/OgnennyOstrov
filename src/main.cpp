@@ -1,8 +1,8 @@
 #include "core/Game.h"
+#include "views/MenuView.h"
 
 int main() {
-    Game game;
-    game.run();
+    creerWindow();
 
     return 0;
 }

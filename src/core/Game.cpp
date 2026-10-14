@@ -7,6 +7,7 @@
 #include "Config.h"
 #include "../models/map/MapGenerator.h"
 #include "views/MapView.h"
+#include "core/Settings.h"
 
 Game::Game() {
     window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Default);
@@ -53,5 +54,6 @@ void Game::update(sf::Time deltaTime) {
 void Game::render() {
     window.clear(sf::Color(30, 30, 30));
     mapView.drawMap(window, map);
+    Settings::appliquerLuminosite(window);
     window.display();
 }
