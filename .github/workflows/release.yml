@@ -1,0 +1,282 @@
+## ========================================================== ##
+## Workflow created by @xen0r-star                            ##
+## Original repo: https://github.com/xen0r-star/OgnennyOstrov ##
+## ========================================================== ##
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  # --- JOB 1: Package Code::Blocks project for the teacher ---
+  package-codeblocks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Generate Code::Blocks project file (.cbp)
+        run: python tools/gen_cbp.py
+
+      - name: Create versioned ZIP for Code::Blocks
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP_NAME="OgnennyOstrov-${GITHUB_REF_NAME}-CodeBlocks.zip"
+          zip -r "$ZIP_NAME" OgnennyOstrov.cbp src deps assets docs README* LICENSE* -x "*.git*" "*.github*" "build/*" "obj/*" "bin/*" || true
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Store artifact for release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-cbp
+          path: OgnennyOstrov-*-CodeBlocks.zip
+
+  # --- JOB 2: Build Linux Client & Server independently ---
+  build-game-linux:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies (SFML, CMake, etc.)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libsfml-dev libstb0 patchelf
+
+      - name: Configure CMake (Linux)
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build and Package Client (Linux)
+        run: |
+          cd build
+          cmake --build . --target OgnennyOstrov --config Release && {
+            mkdir -p ../dist-client
+            find . -name "OgnennyOstrov" -type f -exec cp {} ../dist-client/ \;
+          
+            cp /usr/lib/x86_64-linux-gnu/libsfml-graphics.so.* ../dist-client/ 2>/dev/null || true
+            cp /usr/lib/x86_64-linux-gnu/libsfml-window.so.* ../dist-client/ 2>/dev/null || true
+            cp /usr/lib/x86_64-linux-gnu/libsfml-system.so.* ../dist-client/ 2>/dev/null || true
+            cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-client/ 2>/dev/null || true
+            cp /usr/lib/x86_64-linux-gnu/libstb.so.* ../dist-client/ 2>/dev/null || true
+          
+            patchelf --force-rpath --set-rpath '$ORIGIN' ../dist-client/OgnennyOstrov
+            for f in ../dist-client/*.so*; do
+              [ -L "$f" ] || patchelf --set-rpath '$ORIGIN' "$f"
+            done
+          
+            if ldd ../dist-client/OgnennyOstrov | grep "not found"; then
+              echo "::error::Missing dependency in dist-client"
+              exit 1
+            fi
+          
+            if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
+            if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
+            cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
+            cd ../dist-client && zip -r ../OgnennyOstrov-${GITHUB_REF_NAME}-Client-Linux.zip *
+          } || echo "Client build failed"
+
+      - name: Build and Package Server (Linux)
+        run: |
+          cd build
+          cmake --build . --target OgnennyOstrovServer --config Release && {
+            mkdir -p ../dist-server
+            find . -name "OgnennyOstrovServer" -type f -exec cp {} ../dist-server/ \;
+          
+            cp /usr/lib/x86_64-linux-gnu/libsfml-system.so.* ../dist-server/ 2>/dev/null || true
+            cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-server/ 2>/dev/null || true
+          
+            patchelf --force-rpath --set-rpath '$ORIGIN' ../dist-server/OgnennyOstrovServer
+            for f in ../dist-server/*.so*; do
+              [ -L "$f" ] || patchelf --set-rpath '$ORIGIN' "$f"
+            done
+          
+            if ldd ../dist-server/OgnennyOstrovServer | grep "not found"; then
+              echo "::error::Missing dependency in dist-server"
+              exit 1
+            fi
+          
+            if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
+            cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
+            cd ../dist-server && zip -r ../OgnennyOstrov-${GITHUB_REF_NAME}-Server-Linux.zip *
+          } || echo "Server build failed (non-blocking)"
+
+      - name: Smoke test Linux client (launch and check no crash)
+        run: |
+          if ls OgnennyOstrov-*-Client-Linux.zip >/dev/null 2>&1; then
+            sudo apt-get install -y xvfb
+            mkdir test-client
+            unzip -q OgnennyOstrov-*-Client-Linux.zip -d test-client
+            cd test-client
+            timeout 5 xvfb-run -a ./OgnennyOstrov || [ $? -eq 124 ] || { echo "::error::Client crashed"; exit 1; }
+          else
+            echo "No Linux client zip, skipping smoke test"
+          fi
+
+      - name: Store Linux Client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-client-linux
+          path: OgnennyOstrov-*-Client-Linux.zip
+
+      - name: Store Linux Server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-server-linux
+          path: OgnennyOstrov-*-Server-Linux.zip
+
+  # --- JOB 3: Build Windows Client & Server independently (MSYS2 MinGW) ---
+  build-game-windows:
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up MSYS2 and MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: git mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake make
+
+      - name: Configure CMake (Windows)
+        shell: msys2 {0}
+        run: |
+          mkdir build
+          cd build
+          cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build and Package Client (Windows)
+        shell: msys2 {0}
+        run: |
+          cd build
+          cmake --build . --target OgnennyOstrov --config Release || true
+
+          mkdir -p ../dist-client
+          find . -name "OgnennyOstrov.exe" -exec cp {} ../dist-client/ \;
+
+          if [ -d "../deps/SFML/bin" ]; then cp ../deps/SFML/bin/*.dll ../dist-client/ 2>/dev/null || true; fi
+          if [ -d "../assets" ]; then cp -r ../assets ../dist-client/; fi
+          if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
+          cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
+
+      - name: Create Client ZIP (Windows)
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          Compress-Archive -Path "dist-client\*" -DestinationPath "OgnennyOstrov-$tag-Client-Windows.zip" -Force
+
+      - name: Build and Package Server (Windows)
+        shell: msys2 {0}
+        run: |
+          cd build
+          cmake --build . --target OgnennyOstrovServer --config Release || true
+
+          mkdir -p ../dist-server
+          find . -name "OgnennyOstrovServer.exe" -exec cp {} ../dist-server/ \;
+
+          if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/ 2>/dev/null || true; fi
+          if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/ 2>/dev/null || true; fi
+          if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
+          cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
+
+      - name: Create Server ZIP (Windows)
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          Compress-Archive -Path "dist-server\*" -DestinationPath "OgnennyOstrov-$tag-Server-Windows.zip" -Force
+
+      - name: Smoke test Windows client (static check)
+        shell: pwsh
+        run: |
+          Expand-Archive OgnennyOstrov-*-Client-Windows.zip -DestinationPath test-client
+          if (-not (Test-Path test-client\OgnennyOstrov.exe)) { Write-Error "Client exe missing"; exit 1 }
+          if (-not (Test-Path test-client\assets)) { Write-Error "Assets missing"; exit 1 }
+          if (@(Get-ChildItem test-client\*.dll).Count -eq 0) { Write-Error "No DLL bundled"; exit 1 }
+
+      - name: Store Windows Client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-client-windows
+          path: OgnennyOstrov-*-Client-Windows.zip
+
+      - name: Store Windows Server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-asset-server-windows
+          path: OgnennyOstrov-*-Server-Windows.zip
+
+  # --- JOB 4: Create GitHub Release and attach all available files ---
+  publish-release:
+    needs: [package-codeblocks, build-game-linux, build-game-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Code::Blocks ZIP
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: release-asset-cbp
+          pattern: OgnennyOstrov-*-CodeBlocks.zip
+          merge-multiple: true
+
+      - name: Download Linux Client ZIP
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: release-asset-client-linux
+          pattern: OgnennyOstrov-*-Client-Linux.zip
+          merge-multiple: true
+
+      - name: Download Linux Server ZIP
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: release-asset-server-linux
+          pattern: OgnennyOstrov-*-Server-Linux.zip
+          merge-multiple: true
+
+      - name: Download Windows Client ZIP
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: release-asset-client-windows
+          pattern: OgnennyOstrov-*-Client-Windows.zip
+          merge-multiple: true
+
+      - name: Download Windows Server ZIP
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: release-asset-server-windows
+          pattern: OgnennyOstrov-*-Server-Windows.zip
+          merge-multiple: true
+
+      - name: Create GitHub Release and attach files
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            OgnennyOstrov-*-CodeBlocks.zip
+            OgnennyOstrov-*-Client-Linux.zip
+            OgnennyOstrov-*-Server-Linux.zip
+            OgnennyOstrov-*-Client-Windows.zip
+            OgnennyOstrov-*-Server-Windows.zip
+          generate_release_notes: true
