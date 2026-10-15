@@ -1,12 +1,14 @@
 #include "core/Game.h"
 
 #include <SFML/Window/Event.hpp>
+#include <iostream>
 #include <random>
 
-#include "Config.h"
 #include "../models/map/MapGenerator.h"
-#include "views/MapView.h"
+#include "Config.h"
 #include "core/Settings.h"
+#include "views/MapView.h"
+#include "views/menu/Drawing.h"
 
 #ifdef _WIN32
     #include <Windows.h>
@@ -24,9 +26,16 @@ Game::Game() {
 
     window.setFramerateLimit(60);
 
+    if (!font.loadFromFile("assets/fonts/LilitaOne-Regular.ttf")) {
+        std::cerr << "Cannot load assets/fonts/LilitaOne-Regular.ttf" << std::endl;
+        window.close();
+    }
+}
 
+void Game::startGame() {
     std::random_device rd;
     map = MapGenerator::generateMap(50, 50, static_cast<int>(rd()));
+    state = GameState::Playing;
 }
 
 void Game::run() {
@@ -46,22 +55,78 @@ void Game::processEvents() {
     while (window.pollEvent(event)) {
         if (event.type == sf::Event::Closed) {
             window.close();
+            continue;
         }
 
-        // For testing
-        mapView.handleEvent(event, window);
+        switch (state) {
+            case GameState::Menu:
+                switch (menu.handleEvent(event, window)) {
+                    case MenuAction::Play:        startGame(); break;
+                    case MenuAction::Multiplayer: break;
+                    case MenuAction::Options:     state = GameState::Options; break;
+                    case MenuAction::Quit:        window.close(); break;
+                    case MenuAction::None:        break;
+                }
+                break;
 
-        // Input Controller
+            case GameState::Options:
+                options.handleEvent(event, window, settings);
+                break;
+
+            case GameState::Playing:
+                if (event.type == sf::Event::KeyPressed &&
+                    event.key.code == sf::Keyboard::Escape) {
+                    state = GameState::Menu;   // back to the menu
+                    break;
+                }
+                // For testing
+                mapView.handleEvent(event, window);
+
+                // Input Controller
+                break;
+        }
     }
 }
 
 void Game::update(sf::Time deltaTime) {
-    // Player Move update
+    if (state == GameState::Options && options.back) {
+        options.back = false;
+        state = GameState::Menu;
+    }
+
+    if (state == GameState::Playing) {
+        // Player Move update
+    }
+}
+
+
+void Game::resetScreenView() {
+    const sf::Vector2u size = window.getSize();
+    window.setView(sf::View(sf::FloatRect(
+        0.f, 0.f,
+        static_cast<float>(size.x), static_cast<float>(size.y)
+    )));
 }
 
 void Game::render() {
     window.clear(sf::Color(30, 30, 30));
-    mapView.drawMap(window, map);
-    Settings::appliquerLuminosite(window);
+
+    switch (state) {
+        case GameState::Menu:
+            resetScreenView();
+            menu.draw(window, font);
+            break;
+
+        case GameState::Playing:
+            mapView.drawMap(window, map);
+            break;
+
+        case GameState::Options:
+            resetScreenView();
+            options.draw(window, font, settings);
+            break;
+    }
+
+    drawBrightnessVeil(window, settings.brightness);
     window.display();
 }

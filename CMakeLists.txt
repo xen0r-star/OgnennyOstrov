@@ -24,7 +24,10 @@ file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS
         "${SRC}/views/*.cpp"
         "${SRC}/controllers/client/*.cpp"
 )
-list(APPEND CLIENT_SOURCES "${SRC}/core/Game.cpp")
+list(APPEND CLIENT_SOURCES
+        "${SRC}/core/Game.cpp"
+        "${SRC}/core/Settings.cpp"
+)
 
 # Server sources
 file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS
