@@ -24,7 +24,10 @@ file(GLOB_RECURSE CLIENT_SOURCES CONFIGURE_DEPENDS
         "${SRC}/views/*.cpp"
         "${SRC}/controllers/client/*.cpp"
 )
-list(APPEND CLIENT_SOURCES "${SRC}/core/Game.cpp")
+list(APPEND CLIENT_SOURCES
+        "${SRC}/core/Game.cpp"
+        "${SRC}/core/Settings.cpp"
+)
 
 # Server sources
 file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS
@@ -35,9 +38,9 @@ list(APPEND SERVER_SOURCES "${SRC}/core/GameServer.cpp")
 # ---------- Lib shared ----------
 add_library(OgnennyOstrovShared STATIC ${SHARED_SOURCES})
 target_include_directories(OgnennyOstrovShared PUBLIC ${SRC})
-target_link_libraries(OgnennyOstrovShared PUBLIC sfml-system sfml-network)
+target_link_libraries(OgnennyOstrovShared PUBLIC sfml-system sfml-network sfml-audio)
 
-# ---------- Client (Exécutable principal : OgnennyOstrov) ----------
+# ---------- Client ----------
 add_executable(OgnennyOstrov ${SRC}/main.cpp ${CLIENT_SOURCES})
 target_link_libraries(OgnennyOstrov PRIVATE OgnennyOstrovShared sfml-graphics sfml-window)
 
