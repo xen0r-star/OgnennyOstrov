@@ -75,19 +75,23 @@ inline void drawGrid(
     }
 }
 
-// Center of the window in pixels: every menu is laid out relative to it
+// Center of the current view: every menu is laid out relative to it
 inline sf::Vector2f windowCenter(const sf::RenderWindow& window) {
-    const sf::Vector2u size = window.getSize();
-    return sf::Vector2f(size.x / 2.f, size.y / 2.f);
+    return window.getView().getCenter();
+}
+
+// Mouse position (pixels) converted into the current view coordinates
+inline sf::Vector2f mouseToView(const sf::RenderWindow& window, const int x, const int y) {
+    return window.mapPixelToCoords(sf::Vector2i(x, y));
 }
 
 // Background shared by the menus: grass + stone room surrounded by a wall
 inline void drawBackground(sf::RenderWindow& window) {
-    const sf::Vector2u size = window.getSize();
+    const sf::Vector2f size = window.getView().getSize();
     const sf::Vector2f c = windowCenter(window);
 
     window.clear(GRASS);
-    drawGrid(window, 0, 0, static_cast<float>(size.x), static_cast<float>(size.y), GRASS_LINE);
+    drawGrid(window, 0, 0, size.x, size.y, GRASS_LINE);
 
     const float x = c.x - 252;
     const float y = c.y - 322;

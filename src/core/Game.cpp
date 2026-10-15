@@ -51,6 +51,8 @@ void Game::run() {
 }
 
 void Game::processEvents() {
+    if (state != GameState::Playing) resetScreenView();
+
     sf::Event event;
     while (window.pollEvent(event)) {
         if (event.type == sf::Event::Closed) {
@@ -77,8 +79,10 @@ void Game::processEvents() {
                 if (event.type == sf::Event::KeyPressed &&
                     event.key.code == sf::Keyboard::Escape) {
                     state = GameState::Menu;   // back to the menu
+                    resetScreenView();
                     break;
                 }
+
                 // For testing
                 mapView.handleEvent(event, window);
 
@@ -101,11 +105,10 @@ void Game::update(sf::Time deltaTime) {
 
 
 void Game::resetScreenView() {
-    const sf::Vector2u size = window.getSize();
-    window.setView(sf::View(sf::FloatRect(
-        0.f, 0.f,
-        static_cast<float>(size.x), static_cast<float>(size.y)
-    )));
+    const sf::Vector2f size(window.getSize());
+    const float scale = size.y / 1200.f; // the menu is designed for a 1200px high screen
+
+    window.setView(sf::View(sf::FloatRect(0.f, 0.f, size.x / scale, size.y / scale)));
 }
 
 void Game::render() {

@@ -17,9 +17,9 @@ MenuAction MenuView::handleEvent(const sf::Event& event, const sf::RenderWindow&
     const sf::Vector2f center = windowCenter(window);
 
     if (event.type == sf::Event::MouseMoved) {
+        const sf::Vector2f mouse = mouseToView(window, event.mouseMove.x, event.mouseMove.y);
         for (int i = 0; i < 4; i++) {
-            if (buttonArea(i, center).contains(static_cast<float>(event.mouseMove.x),
-                                               static_cast<float>(event.mouseMove.y))) {
+            if (buttonArea(i, center).contains(mouse)) {
                 selection = i;
             }
         }
@@ -27,9 +27,9 @@ MenuAction MenuView::handleEvent(const sf::Event& event, const sf::RenderWindow&
 
     if (event.type == sf::Event::MouseButtonPressed &&
         event.mouseButton.button == sf::Mouse::Left) {
+        const sf::Vector2f mouse = mouseToView(window, event.mouseButton.x, event.mouseButton.y);
         for (int i = 0; i < 4; i++) {
-            if (buttonArea(i, center).contains(static_cast<float>(event.mouseButton.x),
-                                               static_cast<float>(event.mouseButton.y))) {
+            if (buttonArea(i, center).contains(mouse)) {
                 return BUTTON_ACTIONS[i];
             }
         }

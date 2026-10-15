@@ -29,8 +29,9 @@ void OptionsView::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
     if (event.type != sf::Event::MouseButtonPressed) return;
 
     const sf::Vector2f c = windowCenter(window);
-    const float x = static_cast<float>(event.mouseButton.x);
-    const float y = static_cast<float>(event.mouseButton.y);
+    const sf::Vector2f mouse = mouseToView(window, event.mouseButton.x, event.mouseButton.y);
+    const float x = mouse.x;
+    const float y = mouse.y;
 
     if (brightnessMinus(c).contains(x, y))    settings.changeBrightness(-10);
     if (brightnessPlus(c).contains(x, y))     settings.changeBrightness(+10);
