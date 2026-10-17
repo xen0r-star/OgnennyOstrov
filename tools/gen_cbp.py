@@ -1,14 +1,13 @@
 import pathlib
 
 root = pathlib.Path(__file__).resolve().parent.parent
-tpl = (root / "tools/Goulag.cbp.in").read_text(encoding="utf-8")
+tpl = (root / "tools/OgnennyOstrov.cbp.in").read_text(encoding="utf-8")
 
 CLIENT = ["Client_Debug", "Client_Release"]
 SERVER = ["Server_Debug", "Server_Release"]
 ALL = CLIENT + SERVER
 
 def targets_for(rel: str):
-    """Même logique que les GLOB du CMakeLists."""
     if rel.startswith(("src/models/", "src/network/", "src/utils/")):
         return ALL
     if rel.startswith(("src/views/", "src/controllers/client/")):
@@ -30,7 +29,7 @@ for p in sorted((root / "src").rglob("*")):
     if p.suffix == ".cpp":
         tg = targets_for(rel)
         if tg is None:
-            print(f"[!] ignoré (pas dans CMake) : {rel}")
+            print(f"[!] ignored (not in CMake): {rel}")
             continue
         opts = "\n".join(f'      <Option target="{t}" />' for t in tg)
         units.append(
@@ -41,5 +40,5 @@ for p in sorted((root / "src").rglob("*")):
     else:
         units.append(f'    <Unit filename="{rel}" />')
 
-(root / "Goulag.cbp").write_text(tpl.replace("@@UNITS@@", "\n".join(units)), encoding="utf-8")
-print(f"Goulag.cbp généré ({len(units)} fichiers)")
+(root / "OgnennyOstrov.cbp").write_text(tpl.replace("@@UNITS@@", "\n".join(units)), encoding="utf-8")
+print(f"OgnennyOstrov.cbp generated ({len(units)} files)")

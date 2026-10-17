@@ -1,8 +1,19 @@
 #ifndef GOULAG_GAME_H
 #define GOULAG_GAME_H
 
-#include "views/MapView.h"
+#include "Settings.h"
+
 #include <SFML/Graphics.hpp>
+
+#include "views/MapView.h"
+#include "views/menu/MenuView.h"
+#include "views/menu/OptionsView.h"
+
+enum class GameState {
+    Menu,
+    Options,
+    Playing,
+};
 
 class Game {
 public:
@@ -15,9 +26,20 @@ private:
     void update(sf::Time deltaTime);
     void render();
 
-    sf::RenderWindow window;
-    Map map;
+    void startGame();
+    void resetScreenView();
 
+    sf::RenderWindow window;
+    GameState state = GameState::Menu;
+
+    // Menu data
+    sf::Font font;
+    Settings settings;
+    MenuView menu;
+    OptionsView options;
+
+    // Game data
+    Map map;
     MapView mapView;
 };
 
