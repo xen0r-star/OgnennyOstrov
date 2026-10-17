@@ -75,7 +75,11 @@ jobs:
             cp /usr/lib/x86_64-linux-gnu/libsfml-system.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libstb.so.* ../dist-client/ 2>/dev/null || true
-          
+            cp /usr/lib/x86_64-linux-gnu/libsfml-audio.so.* ../dist-client/ 2>/dev/null || true
+            for lib in libopenal libvorbisfile libvorbisenc libvorbis libFLAC libogg; do
+              cp /usr/lib/x86_64-linux-gnu/$lib.so.* ../dist-client/ 2>/dev/null || true
+            done
+
             patchelf --force-rpath --set-rpath '$ORIGIN' ../dist-client/OgnennyOstrov
             for f in ../dist-client/*.so*; do
               [ -L "$f" ] || patchelf --set-rpath '$ORIGIN' "$f"

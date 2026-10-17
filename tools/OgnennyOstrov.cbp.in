@@ -20,6 +20,7 @@
           <Add library="sfml-window-d" />
           <Add library="sfml-network-d" />
           <Add library="sfml-system-d" />
+          <Add library="sfml-audio-d" />
         </Linker>
       </Target>
       <Target title="Client_Release">
@@ -51,6 +52,7 @@
         <Linker>
           <Add library="sfml-network-d" />
           <Add library="sfml-system-d" />
+          <Add library="sfml-audio" />
         </Linker>
       </Target>
       <Target title="Server_Release">

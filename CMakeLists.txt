@@ -11,7 +11,7 @@ if(WIN32)
     set(SFML_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/SFML/bin" CACHE PATH "SFML DLL folder")
 endif()
 
-find_package(SFML 2.5 COMPONENTS graphics window system network REQUIRED)
+find_package(SFML 2.5 COMPONENTS graphics window system network audio REQUIRED)
 
 file(GLOB_RECURSE SHARED_SOURCES CONFIGURE_DEPENDS
         "${SRC}/models/*.cpp"
@@ -38,11 +38,11 @@ list(APPEND SERVER_SOURCES "${SRC}/core/GameServer.cpp")
 # ---------- Lib shared ----------
 add_library(OgnennyOstrovShared STATIC ${SHARED_SOURCES})
 target_include_directories(OgnennyOstrovShared PUBLIC ${SRC})
-target_link_libraries(OgnennyOstrovShared PUBLIC sfml-system sfml-network sfml-audio)
+target_link_libraries(OgnennyOstrovShared PUBLIC sfml-system sfml-network)
 
 # ---------- Client ----------
 add_executable(OgnennyOstrov ${SRC}/main.cpp ${CLIENT_SOURCES})
-target_link_libraries(OgnennyOstrov PRIVATE OgnennyOstrovShared sfml-graphics sfml-window)
+target_link_libraries(OgnennyOstrov PRIVATE OgnennyOstrovShared sfml-graphics sfml-window sfml-audio)
 
 # ---------- Server ----------
 add_executable(OgnennyOstrovServer ${SRC}/main_server.cpp ${SERVER_SOURCES})
