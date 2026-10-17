@@ -26,7 +26,7 @@ void MapGenerator::buildMapBorder(Map& map, std::mt19937& rng, const int margin)
             GameMap::Tile t = tower ? Tiles::WATCHTOWER : Tiles::WALL_BARBED_WIRE;
             if (!tower) t.modifier.rotation = 0;
 
-            addTile(map, x, y, t, GameMap::ZIndex::Layer2);
+            addTile(map, x, y, t, GameMap::ZIndex::Layer3);
         }
     }
 
@@ -38,7 +38,7 @@ void MapGenerator::buildMapBorder(Map& map, std::mt19937& rng, const int margin)
             GameMap::Tile t = tower ? Tiles::WATCHTOWER : Tiles::WALL_BARBED_WIRE;
             if (!tower) t.modifier.rotation = 90;
 
-            addTile(map, x, y, t, GameMap::ZIndex::Layer2);
+            addTile(map, x, y, t, GameMap::ZIndex::Layer3);
         }
     }
 
@@ -68,14 +68,19 @@ void MapGenerator::buildMapBorder(Map& map, std::mt19937& rng, const int margin)
             if (!inMargin) continue;
 
             if (chance(rng) < 0.4f) {
-                GameMap::Tile tile = vegetationProps[propPick(rng)];
+                const int propIndex = propPick(rng);
+                GameMap::Tile tile = vegetationProps[propIndex];
 
                 tile.modifier.rotation = angleDist(rng) * 90;
                 tile.modifier.offsetX  = offsetDist(rng);
                 tile.modifier.offsetY  = offsetDist(rng);
                 tile.modifier.scale    = scaleDist(rng);
 
-                addTile(map, x, y, tile, GameMap::ZIndex::Layer1);
+                if (propIndex == 0) {
+                    addTile(map, x, y, tile, GameMap::ZIndex::Layer2);
+                } else {
+                    addTile(map, x, y, tile, GameMap::ZIndex::Layer1);
+                }
             }
         }
     }

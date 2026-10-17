@@ -372,6 +372,37 @@ void MapGenerator::correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect
     std::vector<int> dist(N * 4);
     std::vector<int> prev(N * 4);
 
+    // Would this tile complete a 2x2 block of path? (s = current state, its last tiles count too)
+    auto makesBlock = [&](const int nx, const int ny, const int s) {
+        int chain[3] = { -1, -1, -1 };
+        int t = s;
+        for (int k = 0; k < 3 && t != -1; ++k) {
+            chain[k] = t >> 2;
+            t = prev[t];
+        }
+        auto occupied = [&](const int x, const int y) {
+            if (!inBounds(x, y)) return false;
+            const int i = idx(x, y);
+            return pathCell[i] || chain[0] == i || chain[1] == i || chain[2] == i;
+        };
+        // The 4 possible 2x2 squares containing the tile
+        for (int ox = -1; ox <= 0; ++ox) {
+            for (int oy = -1; oy <= 0; ++oy) {
+                bool full = true;
+                for (int i = 0; i < 2 && full; ++i) {
+                    for (int j = 0; j < 2; ++j) {
+                        const int x = nx + ox + i;
+                        const int y = ny + oy + j;
+                        if (x == nx && y == ny) continue;
+                        if (!occupied(x, y)) { full = false; break; }
+                    }
+                }
+                if (full) return true;
+            }
+        }
+        return false;
+    };
+
     for (const int startCell : needCells) {
         while (need[startCell] > 0) {
             // Attempt connection to distinct unconnected path components first, otherwise close loop locally
@@ -434,6 +465,7 @@ void MapGenerator::correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect
 
                         const int ni = idx(nx, ny);
                         if (blocked[ni]) continue;
+                        if (!pathCell[ni] && makesBlock(nx, ny, s)) continue;
 
                         int step = FREE_COST;
                         if (pathCell[ni]) {
