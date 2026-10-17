@@ -75,7 +75,11 @@ jobs:
             cp /usr/lib/x86_64-linux-gnu/libsfml-system.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libsfml-network.so.* ../dist-client/ 2>/dev/null || true
             cp /usr/lib/x86_64-linux-gnu/libstb.so.* ../dist-client/ 2>/dev/null || true
-          
+            cp /usr/lib/x86_64-linux-gnu/libsfml-audio.so.* ../dist-client/ 2>/dev/null || true
+            for lib in libopenal libvorbisfile libvorbisenc libvorbis libFLAC libogg; do
+              cp /usr/lib/x86_64-linux-gnu/$lib.so.* ../dist-client/ 2>/dev/null || true
+            done
+
             patchelf --force-rpath --set-rpath '$ORIGIN' ../dist-client/OgnennyOstrov
             for f in ../dist-client/*.so*; do
               [ -L "$f" ] || patchelf --set-rpath '$ORIGIN' "$f"
@@ -141,7 +145,7 @@ jobs:
           name: release-asset-server-linux
           path: OgnennyOstrov-*-Server-Linux.zip
 
-  # --- JOB 3: Build Windows Client & Server independently (MSYS2 MinGW) ---
+  # --- JOB 3: Build Windows Client & Server independently (MinGW 8.1.0, same as Code::Blocks) ---
   build-game-windows:
     runs-on: windows-latest
     continue-on-error: true
@@ -151,25 +155,69 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up MSYS2 and MinGW
-        uses: msys2/setup-msys2@v2
+      - name: Install MinGW 8.1.0
+        uses: egor-tensin/setup-mingw@v2
         with:
-          msystem: MINGW64
-          update: true
-          install: git mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake make
+          platform: x64
+          version: 8.1.0
+
+      - name: Create dependency bundling helper
+        shell: bash
+        run: |
+          cat > bundle_deps.sh << 'SCRIPT'
+          SFML_BIN="$(cygpath -u "$GITHUB_WORKSPACE")/deps/SFML/bin"
+
+          find_dll() {
+            local name="$1" p
+            if [ -f "$SFML_BIN/$name" ]; then echo "$SFML_BIN/$name"; return; fi
+            p="$(g++ -print-file-name="$name")"
+            if [ -f "$p" ]; then echo "$p"; return; fi
+            p="$(dirname "$(which g++)")/$name"
+            if [ -f "$p" ]; then echo "$p"; return; fi
+            find /c/ProgramData -iname "$name" -path "*mingw*" -print -quit 2>/dev/null
+          }
+
+          bundle_deps() {
+            local dir="$1" changed=1 f dll lower src
+            while [ "$changed" -eq 1 ]; do
+              changed=0
+              for f in "$dir"/*.exe "$dir"/*.dll; do
+                [ -f "$f" ] || continue
+                for dll in $(objdump -p "$f" | awk '/DLL Name:/ {print $3}' | tr -d '\r'); do
+                  lower="$(echo "$dll" | tr 'A-Z' 'a-z')"
+                  case "$lower" in api-ms-win-*|ext-ms-win-*) continue ;; esac
+                  if ls "$dir" | grep -qixF "$dll"; then continue; fi
+                  if [ -f "/c/Windows/System32/$dll" ]; then continue; fi
+                  src="$(find_dll "$dll")"
+                  if [ -n "$src" ] && [ -f "$src" ]; then
+                    cp "$src" "$dir/"
+                    echo "bundled $dll (from $src), required by $(basename "$f")"
+                    changed=1
+                  else
+                    echo "::error::DLL not found: $dll (required by $(basename "$f"))"
+                    return 1
+                  fi
+                done
+              done
+            done
+          }
+          SCRIPT
 
       - name: Configure CMake (Windows)
-        shell: msys2 {0}
+        shell: bash
         run: |
-          mkdir build
-          cd build
-          cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+          g++ --version
+          if ! g++ --version | head -n1 | grep -q "8\.1\.0"; then
+            echo "::warning::g++ is not version 8.1.0 (the Code::Blocks version)"
+          fi
+          mkdir build && cd build
+          cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build and Package Client (Windows)
-        shell: msys2 {0}
+        shell: bash
         run: |
           cd build
-          cmake --build . --target OgnennyOstrov --config Release || true
+          cmake --build . --target OgnennyOstrov --config Release
 
           mkdir -p ../dist-client
           find . -name "OgnennyOstrov.exe" -exec cp {} ../dist-client/ \;
@@ -179,6 +227,12 @@ jobs:
           if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
           cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
 
+          . ../bundle_deps.sh
+          bundle_deps ../dist-client
+
+          echo "--- dist-client contents ---"
+          ls ../dist-client
+
       - name: Create Client ZIP (Windows)
         shell: pwsh
         run: |
@@ -186,18 +240,22 @@ jobs:
           Compress-Archive -Path "dist-client\*" -DestinationPath "OgnennyOstrov-$tag-Client-Windows.zip" -Force
 
       - name: Build and Package Server (Windows)
-        shell: msys2 {0}
+        shell: bash
         run: |
           cd build
-          cmake --build . --target OgnennyOstrovServer --config Release || true
+          cmake --build . --target OgnennyOstrovServer --config Release
 
           mkdir -p ../dist-server
           find . -name "OgnennyOstrovServer.exe" -exec cp {} ../dist-server/ \;
 
-          if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/ 2>/dev/null || true; fi
-          if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/ 2>/dev/null || true; fi
           if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
           cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
+
+          . ../bundle_deps.sh
+          bundle_deps ../dist-server
+
+          echo "--- dist-server contents ---"
+          ls ../dist-server
 
       - name: Create Server ZIP (Windows)
         shell: pwsh
@@ -212,6 +270,7 @@ jobs:
           if (-not (Test-Path test-client\OgnennyOstrov.exe)) { Write-Error "Client exe missing"; exit 1 }
           if (-not (Test-Path test-client\assets)) { Write-Error "Assets missing"; exit 1 }
           if (@(Get-ChildItem test-client\*.dll).Count -eq 0) { Write-Error "No DLL bundled"; exit 1 }
+          if (-not (Test-Path test-client\libstdc++-6.dll)) { Write-Error "MinGW runtime missing (libstdc++-6.dll)"; exit 1 }
 
       - name: Store Windows Client artifact
         uses: actions/upload-artifact@v4

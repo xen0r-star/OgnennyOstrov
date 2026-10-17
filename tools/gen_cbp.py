@@ -3,8 +3,8 @@ import pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
 tpl = (root / "tools/OgnennyOstrov.cbp.in").read_text(encoding="utf-8")
 
-CLIENT = ["Client_Debug", "Client_Release"]
-SERVER = ["Server_Debug", "Server_Release"]
+CLIENT = ["Client"]
+SERVER = ["Server"]
 ALL = CLIENT + SERVER
 
 def targets_for(rel: str):
@@ -14,7 +14,7 @@ def targets_for(rel: str):
         return CLIENT
     if rel.startswith("src/controllers/server/"):
         return SERVER
-    if rel in ("src/core/Game.cpp", "src/main.cpp"):
+    if rel in ("src/core/Game.cpp", "src/core/Settings.cpp", "src/main.cpp"):
         return CLIENT
     if rel in ("src/core/GameServer.cpp", "src/main_server.cpp"):
         return SERVER
