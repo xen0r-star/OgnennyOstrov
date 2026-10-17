@@ -83,9 +83,6 @@ void Game::processEvents() {
                     break;
                 }
 
-            // For testing
-            mapView.handleEvent(event, window);
-
             // Input Controller
             break;
         }
