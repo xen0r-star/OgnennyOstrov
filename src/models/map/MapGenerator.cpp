@@ -1,7 +1,7 @@
 #include "models/map/MapGenerator.h"
 
-TileMap MapGenerator::generateMap(const int height, const int width, const unsigned int seed) {
-    TileMap map;
+Map MapGenerator::generateMap(const int height, const int width, const unsigned int seed) {
+    Map map;
     std::mt19937 rng(seed);
 
     constexpr int margin = 5;
@@ -25,6 +25,7 @@ TileMap MapGenerator::generateMap(const int height, const int width, const unsig
     buildHouseWalls(map, rng, playZone);
     addHousePaths(map, rng, playZone);
     addHouseDoors(map, rng, playZone);
+    addHouseDecorations(map, rng, playZone);
 
     addDecorations(map, rng, playZone);
 

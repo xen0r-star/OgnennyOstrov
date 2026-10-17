@@ -3,7 +3,7 @@
 
 #include <vector>
 
-namespace Map {
+namespace GameMap {
     struct Texture {
         int col = 0;
         int row = 0;
@@ -45,12 +45,11 @@ namespace Map {
     };
 }
 
-
 struct MapCell {
-    std::vector<Map::Tile> layers;
+    std::vector<GameMap::Tile> layers;
 };
 
-struct TileMap {
+struct Map {
     int height = 0;
     int width = 0;
 

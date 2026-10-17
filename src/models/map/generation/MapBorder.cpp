@@ -4,10 +4,10 @@
 #include <functional>
 
 namespace {
-    constexpr int WATCHTOWER_STRIDE = 6; // distance entre deux tours de garde
+    constexpr int WATCHTOWER_STRIDE = 6; // Distance between two watch towers
 }
 
-void MapGenerator::buildMapBorder(TileMap& map, std::mt19937& rng, const int margin) {
+void MapGenerator::buildMapBorder(Map& map, std::mt19937& rng, const int margin) {
     const int x0 = margin;
     const int y0 = margin;
     const int x1 = map.width - 1 - margin;
@@ -23,32 +23,33 @@ void MapGenerator::buildMapBorder(TileMap& map, std::mt19937& rng, const int mar
         for (const int y : {y0, y1}) {
             const bool tower = isCorner(x, y) || (x - x0) % WATCHTOWER_STRIDE == 0;
 
-            Map::Tile t = tower ? Tiles::WATCHTOWER : Tiles::WALL_BARBED_WIRE;
+            GameMap::Tile t = tower ? Tiles::WATCHTOWER : Tiles::WALL_BARBED_WIRE;
             if (!tower) t.modifier.rotation = 0;
 
-            addTile(map, x, y, t, Map::ZIndex::Layer2);
+            addTile(map, x, y, t, GameMap::ZIndex::Layer2);
         }
     }
+
     // LEFT / RIGHT walls
     for (int y = y0 + 1; y < y1; ++y) {
         for (const int x : {x0, x1}) {
             const bool tower = (y - y0) % WATCHTOWER_STRIDE == 0;
 
-            Map::Tile t = tower ? Tiles::WATCHTOWER : Tiles::WALL_BARBED_WIRE;
+            GameMap::Tile t = tower ? Tiles::WATCHTOWER : Tiles::WALL_BARBED_WIRE;
             if (!tower) t.modifier.rotation = 90;
 
-            addTile(map, x, y, t, Map::ZIndex::Layer2);
+            addTile(map, x, y, t, GameMap::ZIndex::Layer2);
         }
     }
 
 
-    // Vegetation in the margin
+    // Vegetation in the border map
     std::uniform_real_distribution chance(0.f, 1.f);
     std::uniform_int_distribution angleDist(0, 3);
     std::uniform_real_distribution offsetDist(-20.f, 20.f);
     std::uniform_real_distribution scaleDist(0.8f, 1.2f);
 
-    constexpr Map::Tile vegetationProps[] = {
+    constexpr GameMap::Tile vegetationProps[] = {
         Tiles::PROP_TREE,
         Tiles::PROP_BUSH,
         Tiles::PROP_GRASS_TUFT
@@ -67,14 +68,14 @@ void MapGenerator::buildMapBorder(TileMap& map, std::mt19937& rng, const int mar
             if (!inMargin) continue;
 
             if (chance(rng) < 0.4f) {
-                Map::Tile tile = vegetationProps[propPick(rng)];
+                GameMap::Tile tile = vegetationProps[propPick(rng)];
 
                 tile.modifier.rotation = angleDist(rng) * 90;
                 tile.modifier.offsetX  = offsetDist(rng);
                 tile.modifier.offsetY  = offsetDist(rng);
                 tile.modifier.scale    = scaleDist(rng);
 
-                addTile(map, x, y, tile, Map::ZIndex::Layer1);
+                addTile(map, x, y, tile, GameMap::ZIndex::Layer1);
             }
         }
     }

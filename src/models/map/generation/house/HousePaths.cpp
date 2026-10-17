@@ -8,28 +8,27 @@
 #include <vector>
 
 namespace {
-    constexpr int EDGE_MARGIN    = 1;  // espace libre avec le bord de la zone de jeu
-    constexpr int FREE_COST      = 3;  // coût d'une case vide
-    constexpr int OWN_COST       = 1;  // coût d'une case où passe déjà un chemin de maison (réutilisation)
-    constexpr int NEAR_HOUSE_COST = 2;  // supplément pour longer le mur d'un bâtiment
-    constexpr int CROSS_COST     = 5;  // supplément pour traverser un chemin de garde / un rail
-    constexpr int TURN_COST      = 2;  // supplément par virage
-    constexpr int LOOP_PERCENT   = 10; // % de chances d'ajouter une liaison en plus (boucle) entre deux bâtiments proches
-    constexpr int LOOP_MAX_DIST   = 14; // distance maximale (en tuiles) pour une liaison en plus
+    constexpr int EDGE_MARGIN     = 1;  // Margin between paths and the map border
+    constexpr int FREE_COST       = 3;  // Cost of an empty tile
+    constexpr int OWN_COST        = 1;  // Cost of a tile already used by a house path (reuse)
+    constexpr int NEAR_HOUSE_COST = 2;  // Extra cost for walking along a building wall
+    constexpr int CROSS_COST      = 5;  // Extra cost for crossing a guard path / a rail
+    constexpr int TURN_COST       = 2;  // Extra cost per turn
+    constexpr int LOOP_PERCENT    = 10; // Percent chance of adding an extra link (loop) between two nearby buildings
+    constexpr int LOOP_MAX_DIST   = 14; // Maximum distance (in tiles) for an extra link
 
-    // Rotations des tuiles. Droits et virages : mêmes conventions que les chemins de garde.
-    // T et bout de chemin : rotations calées sur ton tileset.
-    constexpr int ROT_T_MISSING_DOWN  = 0;   // T dont la branche manquante est en bas
+    // Tile rotations
+    constexpr int ROT_T_MISSING_DOWN  = 0;
     constexpr int ROT_T_MISSING_LEFT  = 90;
     constexpr int ROT_T_MISSING_UP    = 180;
     constexpr int ROT_T_MISSING_RIGHT = 270;
-    constexpr int ROT_END_UP         = 0;   // bout de chemin ouvert vers le haut
+    constexpr int ROT_END_UP         = 0;
     constexpr int ROT_END_RIGHT      = 90;
     constexpr int ROT_END_DOWN       = 180;
     constexpr int ROT_END_LEFT       = 270;
 
-    // Textures de sol qui comptent comme "intérieur de bâtiment"
-    constexpr Map::Texture FLOOR_TEXTURES[] = {
+    // Floor textures that count as "building interior"
+    constexpr GameMap::Texture FLOOR_TEXTURES[] = {
         Tiles::FLOOR_STONE_PLAIN.texture,
         Tiles::FLOOR_STONE_TILES.texture,
         Tiles::FLOOR_STONE_CROSS.texture,
@@ -37,12 +36,12 @@ namespace {
         Tiles::FLOOR_STONE_CRACKED.texture,
         Tiles::FLOOR_WOOD_PLANKS.texture,
     };
-    // Texture des champs de terre (Layer0)
-    constexpr Map::Texture DIRT_TEXTURES[] = {
+    // Dirt field texture (Layer0)
+    constexpr GameMap::Texture DIRT_TEXTURES[] = {
         Tiles::GROUND_DIRT.texture,
     };
-    // Textures des chemins de garde (Layer1)
-    constexpr Map::Texture PATH_TEXTURES[] = {
+    // Guard path textures (Layer1)
+    constexpr GameMap::Texture PATH_TEXTURES[] = {
         Tiles::PATH_STRAIGHT_1.texture,
         Tiles::PATH_CURVE_1.texture,
         Tiles::PATH_CROSSROADS.texture,
@@ -52,8 +51,8 @@ namespace {
         Tiles::PATH_ARROW.texture,
         Tiles::PATH_END.texture,
     };
-    // Textures des rails (Layer2)
-    constexpr Map::Texture RAIL_TEXTURES[] = {
+    // Rail textures (Layer2)
+    constexpr GameMap::Texture RAIL_TEXTURES[] = {
         Tiles::RAIL_STRAIGHT.texture,
         Tiles::RAIL_CURVE.texture,
         Tiles::RAIL_CROSSROADS.texture,
@@ -61,9 +60,7 @@ namespace {
     };
 }
 
-void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& playZone) {
-    // Bits combinables : dans quelles directions part le chemin depuis une tuile.
-    // L'indice d (0..3) d'une direction vaut log2 de son bit : UP=0, RIGHT=1, DOWN=2, LEFT=3.
+void MapGenerator::addHousePaths(Map& map, std::mt19937& rng, const Rect& playZone) {
     enum Direction {
         UP = 1,
         RIGHT = 2,
@@ -73,10 +70,9 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
     constexpr int DX[4] = { 0, 1, 0, -1 };
     constexpr int DY[4] = { -1, 0, 1, 0 };
 
-    // Types de lignes déjà présentes (traversables à angle droit)
     enum Line { GUARD = 1, RAIL = 2 };
 
-    // ---------- 2. Lecture de la map ----------
+    // ---------- 1. Reading the map ----------
     const int W = playZone.w;
     const int H = playZone.h;
     auto idx = [&](const int x, const int y) { return (y - playZone.y) * W + (x - playZone.x); };
@@ -85,9 +81,9 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
                y >= playZone.y + EDGE_MARGIN && y < playZone.y + H - EDGE_MARGIN;
     };
 
-    // La case (x, y) a-t-elle, sur ce calque, une tuile dont la texture est dans la liste ?
-    auto hasTexture = [&](const int x, const int y, const int zIndex, const Map::Texture* list, const int count) {
-        for (const Map::Tile& t : map.cells[y][x].layers) {
+    // Does the tile have a texture from the list on this layer?
+    auto hasTexture = [&](const int x, const int y, const int zIndex, const GameMap::Texture* list, const int count) {
+        for (const GameMap::Tile& t : map.cells[y][x].layers) {
             if (t.zIndex != zIndex) continue;
             for (int i = 0; i < count; ++i) {
                 if (t.texture.col == list[i].col && t.texture.row == list[i].row) return true;
@@ -99,25 +95,25 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
     constexpr int pathCount  = std::size(PATH_TEXTURES);
     constexpr int railCount  = std::size(RAIL_TEXTURES);
 
-    // Lignes existantes (chemins de garde, rails)
+    // Existing lines (guard paths, rails)
     std::vector<unsigned char> lineKind(W * H, 0);
     for (int y = playZone.y; y < playZone.y + H; ++y) {
         for (int x = playZone.x; x < playZone.x + W; ++x) {
-            if (hasTexture(x, y, Map::ZIndex::Layer1, PATH_TEXTURES, pathCount)) lineKind[idx(x, y)] |= GUARD;
-            if (hasTexture(x, y, Map::ZIndex::Layer2, RAIL_TEXTURES, railCount)) lineKind[idx(x, y)] |= RAIL;
+            if (hasTexture(x, y, GameMap::ZIndex::Layer1, PATH_TEXTURES, pathCount)) lineKind[idx(x, y)] |= GUARD;
+            if (hasTexture(x, y, GameMap::ZIndex::Layer2, RAIL_TEXTURES, railCount)) lineKind[idx(x, y)] |= RAIL;
         }
     }
 
-    // Champs de terre : infranchissables pour les chemins de maison
+    // Dirt zone: impassable for house paths
     constexpr int dirtCount = std::size(DIRT_TEXTURES);
     std::vector<unsigned char> dirt(W * H, 0);
     for (int y = playZone.y; y < playZone.y + H; ++y) {
         for (int x = playZone.x; x < playZone.x + W; ++x) {
-            if (hasTexture(x, y, Map::ZIndex::Layer0, DIRT_TEXTURES, dirtCount)) dirt[idx(x, y)] = 1;
+            if (hasTexture(x, y, GameMap::ZIndex::Layer0, DIRT_TEXTURES, dirtCount)) dirt[idx(x, y)] = 1;
         }
     }
 
-    // ---------- 3. Bâtiments ----------
+    // ---------- 2. Buildings ----------
     struct Anchor { int x, y, outDir; };
     struct House {
         int x, y, w, h;
@@ -128,14 +124,14 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
 
     auto isFloor = [&](const int x, const int y) {
         if (x < playZone.x || y < playZone.y || x >= playZone.x + W || y >= playZone.y + H) return false;
-        return hasTexture(x, y, Map::ZIndex::Layer1, FLOOR_TEXTURES, floorCount);
+        return hasTexture(x, y, GameMap::ZIndex::Layer1, FLOOR_TEXTURES, floorCount);
     };
 
     for (int y = playZone.y; y < playZone.y + H; ++y) {
         for (int x = playZone.x; x < playZone.x + W; ++x) {
             if (houseId[idx(x, y)] >= 0 || !isFloor(x, y)) continue;
 
-            // Coin haut-gauche trouvé : on mesure le rectangle
+            // Top-left corner found: measure the rectangle
             int w = 0;
             while (isFloor(x + w, y)) ++w;
             int h = 0;
@@ -155,7 +151,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
     const int n = static_cast<int>(houses.size());
     if (n < 2) return;
 
-    // Cases collées à un bâtiment (pour éviter de longer les murs)
+    // Tiles next to a building (to avoid walking along walls)
     std::vector<unsigned char> nearHouse(W * H, 0);
     for (const House& hs : houses) {
         for (int yy = hs.y - 1; yy <= hs.y + hs.h; ++yy) {
@@ -166,7 +162,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
         }
     }
 
-    // Points d'accroche : cases devant les murs (hors coins). outDir = direction qui s'éloigne du bâtiment.
+    // Anchor points: tiles in front of the walls (no corners). outDir = direction pointing away from the building.
     auto addAnchor = [&](House& hs, const int ax, const int ay, const int outDir) {
         if (!inZone(ax, ay)) return;
         const int i = idx(ax, ay);
@@ -175,17 +171,17 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
     };
     for (House& hs : houses) {
         for (int i = 1; i < hs.w - 1; ++i) {
-            addAnchor(hs, hs.x + i, hs.y - 1,     0); // devant le mur du haut
-            addAnchor(hs, hs.x + i, hs.y + hs.h,  2); // devant le mur du bas
+            addAnchor(hs, hs.x + i, hs.y - 1,     0); // in front of the top wall
+            addAnchor(hs, hs.x + i, hs.y + hs.h,  2); // in front of the bottom wall
         }
         for (int j = 1; j < hs.h - 1; ++j) {
-            addAnchor(hs, hs.x + hs.w, hs.y + j,  1); // devant le mur de droite
-            addAnchor(hs, hs.x - 1,    hs.y + j,  3); // devant le mur de gauche
+            addAnchor(hs, hs.x + hs.w, hs.y + j,  1); // in front of the right wall
+            addAnchor(hs, hs.x - 1,    hs.y + j,  3); // in front of the left wall
         }
     }
 
-    // ---------- 4. Quelles maisons relier ? ----------
-    // Distance (Manhattan) entre les rectangles de deux bâtiments
+    // ---------- 3. Which houses to connect? ----------
+    // Manhattan distance between two building rectangles
     auto gapDist = [&](const House& a, const House& b) {
         const int dx = std::max(0, std::max(a.x - (b.x + b.w), b.x - (a.x + a.w)));
         const int dy = std::max(0, std::max(a.y - (b.y + b.h), b.y - (a.y + a.h)));
@@ -197,8 +193,9 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
     std::vector<char> inTree(n, 0);
     inTree[0] = 1;
 
-    // Arbre couvrant minimal (Prim) : tout est relié, en commençant par les plus proches
+    // Minimum spanning tree (Prim): everything is connected, closest first
     for (int step = 1; step < n; ++step) {
+        // Shortest link between a house in the tree and one outside it
         int best = 1 << 30, bestA = -1, bestB = -1;
         for (int a = 0; a < n; ++a) {
             if (!inTree[a]) continue;
@@ -213,7 +210,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
         linked[bestA * n + bestB] = linked[bestB * n + bestA] = 1;
     }
 
-    // Quelques liaisons en plus pour créer des boucles
+    // A few extra links to create loops
     std::uniform_int_distribution<int> percent(0, 99);
     for (int a = 0; a < n; ++a) {
         for (int b = a + 1; b < n; ++b) {
@@ -225,20 +222,19 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
         }
     }
 
-    // ---------- 5. Tracé des liaisons ----------
-    // edge[] : directions (bits) dans lesquelles le chemin continue depuis chaque case. 0 = pas de chemin.
+    // ---------- 4. Routing the links ----------
+    // edge[]: direction bits in which the path continues from each tile. 0 = no path.
     std::vector<unsigned char> edge(W * H, 0);
-    std::vector<unsigned char> targetDoor(W * H, 0); // bit vers le mur, sur les points d'accroche de la destination
+    std::vector<unsigned char> targetDoor(W * H, 0);
 
     constexpr int INF = 1 << 29;
     std::vector dist(W * H * 4, INF);
     std::vector prev(W * H * 4, -1);
 
-    // Peut-on traverser la ligne (garde / rail) de la case (x, y) en allant dans la direction d ?
-    // Oui seulement à angle droit : aucune case voisine du même type dans l'axe du déplacement.
+    // Can a path cross a guard path / rail here? Only straight across, never along it.
     auto canCross = [&](const int x, const int y, const int d) {
         const int kind = lineKind[idx(x, y)];
-        if (kind == (GUARD | RAIL)) return false; // intersection de deux lignes : on évite
+        if (kind == (GUARD | RAIL)) return false; // intersection of two lines: avoid
         const bool horizontal = (d % 2 == 1);
         const int ax = horizontal ? 1 : 0;
         const int ay = horizontal ? 0 : 1;
@@ -251,15 +247,14 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
         return true;
     };
 
-    // Une case contient-elle déjà du chemin (chemin de maison posé, ou chemin de garde) ?
+    // Does the tile already hold a path (house path or guard path)?
     auto isPathCell = [&](const int x, const int y) {
         if (x < playZone.x || y < playZone.y || x >= playZone.x + W || y >= playZone.y + H) return false;
         const int i = idx(x, y);
         return edge[i] != 0 || (lineKind[i] & GUARD) != 0;
     };
 
-    // Poser un nouveau chemin en (nx, ny) formerait-il un bloc de 2x2 cases de chemin ?
-    // On compte aussi les 3 dernières cases du tracé en cours (état s), pas encore dans edge[].
+    // Would this tile complete a 2x2 block of path? (s = current state, its last tiles count too)
     auto makesBlock = [&](const int nx, const int ny, const int s) {
         int chain[3] = { -1, -1, -1 };
         int t = s;
@@ -273,7 +268,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
             const int i = idx(x, y);
             return chain[0] == i || chain[1] == i || chain[2] == i;
         };
-        // Les 4 carrés de 2x2 qui contiennent la case (nx, ny)
+        // The 4 possible 2x2 squares containing the tile
         for (int ox = -1; ox <= 0; ++ox) {
             for (int oy = -1; oy <= 0; ++oy) {
                 bool full = true;
@@ -291,6 +286,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
         return false;
     };
 
+    // Dijkstra for each link: find the cheapest route between the two houses
     for (const auto& [a, b] : links) {
         const House& from = houses[a];
         const House& to   = houses[b];
@@ -304,11 +300,11 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
             targetDoor[idx(an.x, an.y)] = static_cast<unsigned char>(1 << ((an.outDir + 2) & 3));
         }
 
-        using Entry = std::pair<int, int>; // (coût, état) ; état = case * 4 + direction d'arrivée
+        using Entry = std::pair<int, int>;
         std::priority_queue<Entry, std::vector<Entry>, std::greater<>> queue;
         for (const Anchor& an : from.anchors) {
             const int ai = idx(an.x, an.y);
-            if (edge[ai] == 0 && makesBlock(an.x, an.y, -1)) continue; // ce départ ferait un bloc de 2x2
+            if (edge[ai] == 0 && makesBlock(an.x, an.y, -1)) continue;
             const int s = ai * 4 + an.outDir;
             dist[s] = 0;
             queue.emplace( 0, s );
@@ -325,12 +321,13 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
             const int cx   = playZone.x + cell % W;
             const int cy   = playZone.y + cell / W;
 
-            if (targetDoor[cell]) { goal = s; break; }
+            if (targetDoor[cell]) { goal = s; break; } // reached the target house
 
-            const bool onLine = lineKind[cell] != 0;
+            const bool onLine = lineKind[cell] != 0; // no turning while on a guard path / rail
             for (int turn = 0; turn < 3; ++turn) {
+                // straight, right, left
                 const int nd = (turn == 0) ? d : (turn == 1 ? (d + 1) & 3 : (d + 3) & 3);
-                if (onLine && nd != d) continue; // on traverse une ligne tout droit
+                if (onLine && nd != d) continue;
 
                 const int nx = cx + DX[nd];
                 const int ny = cy + DY[nd];
@@ -345,7 +342,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
                     if (onLine || !canCross(nx, ny, nd)) continue;
                     step += CROSS_COST;
                 }
-                // Nouvelle case de chemin : interdit si elle forme un bloc de 2x2
+
                 const bool isNewPath = edge[ni] == 0 && !(lineKind[ni] & GUARD);
                 if (isNewPath && makesBlock(nx, ny, s)) continue;
                 if (nearHouse[ni] && edge[ni] == 0) step += NEAR_HOUSE_COST;
@@ -363,7 +360,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
 
         if (goal < 0) continue;
 
-        // Reconstruire le chemin (de la destination vers la source)
+        // Rebuild the route from goal back to start
         std::vector<int> states;
         for (int s = goal; s != -1; s = prev[s]) states.push_back(s);
         std::reverse(states.begin(), states.end());
@@ -371,23 +368,17 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
         for (size_t i = 0; i + 1 < states.size(); ++i) {
             const int ca = states[i] >> 2;
             const int cb = states[i + 1] >> 2;
-            const int d  = states[i + 1] & 3; // direction du déplacement a -> b
+            const int d  = states[i + 1] & 3;
             edge[ca] |= static_cast<unsigned char>(1 << d);
             edge[cb] |= static_cast<unsigned char>(1 << ((d + 2) & 3));
         }
 
-        // Les deux bouts du chemin s'ouvrent vers le mur de leur bâtiment (future porte)
         const int startOut = states.front() & 3;
         edge[states.front() >> 2] |= static_cast<unsigned char>(1 << ((startOut + 2) & 3));
         edge[goal >> 2] |= targetDoor[goal >> 2];
     }
 
-    // ---------- 6. Fusion fin / gros ----------
-    // Une case de chemin fin qui touche (par un côté) un chemin gros sans y être reliée devient grosse
-    // et est reliée à lui. On répète tant que ça change : une case devenue grosse peut elle-même
-    // se retrouver collée à un autre chemin fin.
-    // Les cases qui touchent le gros parce que le chemin le traverse sont déjà reliées (bit dans
-    // edge[]) : elles sont ignorées.
+    // ---------- 5. Merging thin / thick paths ----------
     std::vector<unsigned char> thick(W * H, 0);
     for (bool changed = true; changed;) {
         changed = false;
@@ -396,37 +387,36 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
                 const int i = idx(x, y);
                 if (edge[i] == 0 || lineKind[i] != 0 || thick[i]) continue;
 
-                int touching = 0; // directions où un gros est collé sans être relié
+                int touching = 0;
                 for (int d = 0; d < 4; ++d) {
-                    if (edge[i] & (1 << d)) continue; // déjà relié dans cette direction
+                    if (edge[i] & (1 << d)) continue;
                     const int nx = x + DX[d];
                     const int ny = y + DY[d];
                     if (nx < playZone.x || ny < playZone.y || nx >= playZone.x + W || ny >= playZone.y + H) continue;
                     const int ni = idx(nx, ny);
                     if ((lineKind[ni] & GUARD) || thick[ni]) touching |= (1 << d);
                 }
-                if (touching == 0) continue;
+                if (touching == 0) continue; // nothing thick nearby
 
-                // La case devient grosse et se relie directement à chaque gros collé
                 thick[i] = 1;
                 edge[i] |= static_cast<unsigned char>(touching);
                 for (int d = 0; d < 4; ++d) {
                     if (!(touching & (1 << d))) continue;
                     edge[idx(x + DX[d], y + DY[d])] |= static_cast<unsigned char>(1 << ((d + 2) & 3));
                 }
-                changed = true;
+                changed = true; // thickness may spread further, so loop again
             }
         }
     }
 
-    // ---------- 7. Poser les tuiles ----------
+    // ---------- 6. Placing the tiles ----------
     for (int y = playZone.y; y < playZone.y + H; ++y) {
         for (int x = playZone.x; x < playZone.x + W; ++x) {
             const int i = idx(x, y);
             int mask = edge[i];
             if (mask == 0) continue;
 
-            // Un chemin de garde traversé devient un carrefour : on garde ses propres directions
+            // A crossed guard path becomes a junction: keep its own directions
             if (lineKind[i] & GUARD) {
                 for (int d = 0; d < 4; ++d) {
                     const int nx = x + DX[d];
@@ -436,12 +426,12 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
                 }
             }
 
-            // Gros (style 2) pour les chemins de garde et les parties fusionnées, fin (style 1) sinon
+            // Thick (style 2), thin (style 1)
             const bool isThick = thick[i] || (lineKind[i] & GUARD);
-            const Map::Tile straight = isThick ? Tiles::PATH_STRAIGHT_2 : Tiles::PATH_STRAIGHT_1;
-            const Map::Tile curve    = isThick ? Tiles::PATH_CURVE_2    : Tiles::PATH_CURVE_1;
+            const GameMap::Tile straight = isThick ? Tiles::PATH_STRAIGHT_2 : Tiles::PATH_STRAIGHT_1;
+            const GameMap::Tile curve    = isThick ? Tiles::PATH_CURVE_2    : Tiles::PATH_CURVE_1;
 
-            Map::Tile tile;
+            GameMap::Tile tile;
             switch (mask) {
                 case UP | DOWN:    tile = straight; tile.modifier.rotation = 0;   break;
                 case LEFT | RIGHT: tile = straight; tile.modifier.rotation = 90;  break;
@@ -463,7 +453,7 @@ void MapGenerator::addHousePaths(TileMap& map, std::mt19937& rng, const Rect& pl
                 case LEFT:  tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_LEFT;  break;
                 default: continue;
             }
-            addTile(map, x, y, tile, Map::ZIndex::Layer1);
+            addTile(map, x, y, tile, GameMap::ZIndex::Layer1);
         }
     }
 }

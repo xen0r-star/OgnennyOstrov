@@ -5,14 +5,13 @@
 #include <vector>
 
 namespace {
-    constexpr int WIDTH_MIN = 10;  // distance minimale entre deux rails parallèles
-    constexpr int WIDTH_MAX = 20;  // distance maximale (avant répartition du reste)
-    constexpr int MARGIN   = 4;   // bord libre autour de la boucle
-    constexpr int COVERAGE = 70;  // % des nœuds utilisés (100 = partout, plus bas = plus de poches vides)
+    constexpr int WIDTH_MIN = 10;  // Min distance between two parallel rails
+    constexpr int WIDTH_MAX = 20;  // Max distance between two parallel rails
+    constexpr int MARGIN    = 4;   // Margin between the map border
+    constexpr int COVERAGE  = 80;  // Percentage of nodes in use
 }
 
-void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &playZone) {
-    // Bits combinables : sert à décrire dans quelles directions part une tuile
+void MapGenerator::addRailPaths(Map &map, std::mt19937 &rng, const Rect &playZone) {
     enum Direction {
         UP = 1,
         RIGHT = 2,
@@ -22,13 +21,14 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
 
     std::uniform_int_distribution widthDist(WIDTH_MIN, WIDTH_MAX);
 
-    // ---------- 1. Positions des lignes de la grille ----------
-    // pos[0] = positions en x, pos[1] = positions en y (relatives au coin de la forme).
+    // ---------- 1. Grid Line Positions ----------
+    // pos[0] = x positions, pos[1] = y positions
+    // Each column and row is assigned a random variable width.
     std::vector<int> pos[2];
     int size[2] = { playZone.w - 1 - 2 * MARGIN, playZone.h - 1 - 2 * MARGIN };
 
     for (int axis = 0; axis < 2; ++axis) {
-        // a) Tirer des largeurs tant qu'elles rentrent dans la zone
+        // a) Randomly generate widths until the play zone is filled
         std::vector<int> widths;
         int total = 0;
         while (true) {
@@ -38,20 +38,20 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
             widths.push_back(width);
         }
 
-        // b) Nombre IMPAIR de colonnes : nœud, liaison, nœud, ..., nœud
+        // b) Ensure an odd number of segments (Node - Link - Node - ... - Node pattern)
         if (widths.size() % 2 == 0 && !widths.empty()) {
             total -= widths.back();
             widths.pop_back();
         }
-        if (widths.size() < 3) return; // zone trop petite : pas assez de place pour 2 nœuds
+        if (widths.size() < 3) return; // Zone is too small to build grid
 
-        // c) Répartir l'espace restant, 1 tuile à la fois, pour que la grille remplisse la zone
+        // c) Evenly distribute remaining leftover space across all segments (1 tile at a time)
         int leftover = size[axis] - total;
         for (int i = 0; i < leftover; ++i) {
             widths[i % widths.size()] += 1;
         }
 
-        // d) Largeurs -> positions cumulées
+        // d) Convert segment widths into absolute positions
         int sum = 0;
         pos[axis].push_back(0);
         for (int width : widths) {
@@ -60,27 +60,27 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
         }
     }
 
-    int gw = static_cast<int>(pos[0].size()) - 1; // nombre de colonnes (nœuds + liaisons)
-    int gh = static_cast<int>(pos[1].size()) - 1; // nombre de lignes (nœuds + liaisons)
-    int nw = (gw + 1) / 2;                        // nombre de nœuds en largeur
-    int nh = (gh + 1) / 2;                        // nombre de nœuds en hauteur
+    int gw = static_cast<int>(pos[0].size()) - 1; // Number of grid columns
+    int gh = static_cast<int>(pos[1].size()) - 1; // Number of grid rows
+    int nw = (gw + 1) / 2;                        // Number of horizontal node points
+    int nh = (gh + 1) / 2;                        // Number of vertical node points
 
     int ox = playZone.x + MARGIN;
     int oy = playZone.y + MARGIN;
 
-    // ---------- 2. Arbre aléatoire (Randomized DFS) ----------
-    // solid[] marque les cases de la grille qui font partie de la forme (1 = pleine).
-    // Bordure vide de 1 case autour (d'où gw + 2 et les "+ 1") pour lire les voisines sans sortir.
+    // ---------- 2. Partial Spanning Tree (Randomized Depth-First Search / Maze Generation Algorithm) ----------
+    // solid[] marks grid tiles that form part of the path structure (1 = occupied).
+    // An outer margin of 1 empty cell padding allows reading neighbor bounds safely.
     int pw = gw + 2;
     std::vector<int> solid(pw * (gh + 2), 0);
     std::vector<int> visited(nw * nh, 0);
     std::vector<int> stackI, stackJ;
 
-    // Nombre de nœuds visé : on s'arrête avant d'avoir tout visité pour laisser des poches vides
+    // Target node count: stop traversal early based on COVERAGE percentage to leave empty pockets
     int target = std::max(2, nw * nh * COVERAGE / 100);
     int visitedCount = 1;
 
-    // Départ sur un nœud au hasard (les chemins de garde partent du coin, pas les rails)
+    // Pick a random starting node (rail tracks spawn randomly, unlike guard paths starting at corners)
     std::uniform_int_distribution<int> startI(0, nw - 1);
     std::uniform_int_distribution<int> startJ(0, nh - 1);
     int si = startI(rng);
@@ -91,11 +91,12 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
     stackI.push_back(si);
     stackJ.push_back(sj);
 
+    // Iterative randomized Depth-First Search (DFS) algorithm with early termination
     while (!stackI.empty() && visitedCount < target) {
         int i = stackI.back();
         int j = stackJ.back();
 
-        // Lister les voisins de ce nœud qui ne sont pas encore dans l'arbre
+        // List unvisited neighboring nodes for current position
         int candI[4], candJ[4];
         int count = 0;
         for (int k = 0; k < 4; ++k) {
@@ -111,7 +112,7 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
             }
         }
 
-        // Cul-de-sac : retour au nœud précédent
+        // Dead end: backtrack to previous node
         if (count == 0) {
             stackI.pop_back();
             stackJ.pop_back();
@@ -123,20 +124,21 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
         int ni = candI[c];
         int nj = candJ[c];
 
-        // Nœud (i, j) = case (2i + 1, 2j + 1) dans solid[] ; la liaison est pile entre deux nœuds
+        // Node (i, j) maps to tile (2i + 1, 2j + 1) in solid[]; connection link is placed between nodes
         visited[nj * nw + ni] = 1;
         ++visitedCount;
-        solid[(2 * nj + 1) * pw + (2 * ni + 1)] = 1;   // le nouveau nœud
-        solid[(j + nj + 1) * pw + (i + ni + 1)] = 1;   // la liaison entre les deux
+        solid[(2 * nj + 1) * pw + (2 * ni + 1)] = 1;   // Target node
+        solid[(j + nj + 1) * pw + (i + ni + 1)] = 1;   // Connection link
         stackI.push_back(ni);
         stackJ.push_back(nj);
     }
 
-    // ---------- 3. Contour de la forme (boundary tracing) ----------
-    // On note, pour chaque coin de case, le coin suivant du contour (sens horaire).
+    // ---------- 3. Boundary Loop Construction (Wall Follower Algorithm) ----------
+    // Map each cell corner to the next clockwise corner along the path perimeter
     int vw = gw + 1;
-    std::vector<int> nextCorner(vw * (gh + 1), -1); // -1 = aucun contour ne part de ce coin
+    std::vector<int> nextCorner(vw * (gh + 1), -1); // -1 = no corner boundary originates here
 
+    // Trace around solid nodes to construct a continuous boundary loop
     for (int cy = 0; cy < gh; ++cy) {
         for (int cx = 0; cx < gw; ++cx) {
             if (solid[(cy + 1) * pw + (cx + 1)] == 0) continue;
@@ -154,28 +156,28 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
     }
 
     int start = -1;
-    for (int v = 0; v < (int)nextCorner.size(); ++v) {
+    for (int v = 0; v < static_cast<int>(nextCorner.size()); ++v) {
         if (nextCorner[v] >= 0) { start = v; break; }
     }
     if (start < 0) return;
 
-    // ---------- 4. Liste ordonnée des tuiles de la boucle ----------
+    // ---------- 4. Ordered Boundary Loop Tile Traversal ----------
     std::vector<int> cellsX, cellsY;
     int v = start;
     do {
         int nv = nextCorner[v];
 
-        // Coin de départ et coin d'arrivée du segment, en coordonnées de la map
+        // Retrieve tile-space start and end corner coordinates
         int sx = ox + pos[0][v % vw];
         int sy = oy + pos[1][v / vw];
         int ex = ox + pos[0][nv % vw];
         int ey = oy + pos[1][nv / vw];
 
-        // Direction de marche (-1, 0 ou 1 sur chaque axe)
+        // Step direction vectors (-1, 0, or 1 on each axis)
         int dx = (ex > sx) - (ex < sx);
         int dy = (ey > sy) - (ey < sy);
 
-        // Le coin d'arrivée est ajouté par le segment suivant (pas de doublon)
+        // Step along segment toward next corner (endpoint is appended by subsequent segment)
         while (sx != ex || sy != ey) {
             cellsX.push_back(sx);
             cellsY.push_back(sy);
@@ -185,8 +187,8 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
         v = nv;
     } while (v != start);
 
-    // ---------- 5. Poser les rails ----------
-    // Le "% n" referme la boucle : la voisine de la dernière case est la première.
+    // ---------- 5. Tile Placement & Bitmask Rotation Calculation ----------
+    // Modulo wrapping (% n) closes the loop: the neighbor after the last tile is the first tile
     int n = static_cast<int>(cellsX.size());
     for (int i = 0; i < n; ++i) {
         int cx = cellsX[i];
@@ -195,7 +197,7 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
         int neighX[2] = { cellsX[(i + n - 1) % n], cellsX[(i + 1) % n] };
         int neighY[2] = { cellsY[(i + n - 1) % n], cellsY[(i + 1) % n] };
 
-        // Masque de bits : dans quelles directions part le rail depuis cette case ?
+        // Bitmask calculation: identify rail outflow directions from current tile
         int mask = 0;
         for (int k = 0; k < 2; ++k) {
             if (neighX[k] > cx)      mask |= RIGHT;
@@ -204,8 +206,8 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
             else                     mask |= UP;
         }
 
-        // Mêmes rotations que les chemins (à ajuster si ton tileset de rails est orienté autrement)
-        Map::Tile tile;
+        // Apply corresponding rail tile texture and rotation modifier based on mask
+        GameMap::Tile tile;
         switch (mask) {
             case UP | DOWN:    tile = Tiles::RAIL_STRAIGHT; tile.modifier.rotation = 0;   break;
             case LEFT | RIGHT: tile = Tiles::RAIL_STRAIGHT; tile.modifier.rotation = 90;  break;
@@ -215,6 +217,6 @@ void MapGenerator::addRailPaths(TileMap &map, std::mt19937 &rng, const Rect &pla
             case RIGHT | UP:   tile = Tiles::RAIL_CURVE;    tile.modifier.rotation = 270; break;
             default: continue;
         }
-        addTile(map, cx, cy, tile, Map::ZIndex::Layer2);
+        addTile(map, cx, cy, tile, GameMap::ZIndex::Layer2);
     }
 }

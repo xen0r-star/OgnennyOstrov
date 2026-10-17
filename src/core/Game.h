@@ -16,7 +16,8 @@ private:
     void render();
 
     sf::RenderWindow window;
-    TileMap map;
+    Map map;
+
     MapView mapView;
 };
 

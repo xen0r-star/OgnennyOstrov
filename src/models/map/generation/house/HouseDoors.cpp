@@ -5,13 +5,14 @@
 #include <vector>
 
 namespace {
+    // Rotations for doors
     constexpr int ROT_TOP    = 0;
     constexpr int ROT_RIGHT  = 90;
     constexpr int ROT_BOTTOM = 180;
     constexpr int ROT_LEFT   = 270;
 
-    // Types de porte et leur poids de tirage (en %), dans le même ordre
-    constexpr Map::Tile DOOR_TILES[] = {
+    // Types of door and their pull weight (as a percentage), in the same order
+    constexpr GameMap::Tile DOOR_TILES[] = {
         Tiles::WALL_DOORWAY_OPEN,
         Tiles::WALL_DOOR_FRAME,
         Tiles::WALL_DOORWAY_CLOSE,
@@ -19,8 +20,8 @@ namespace {
     };
     std::discrete_distribution DOOR_PICK({ 10.0, 0.0, 80.0, 10.0 });
 
-    // Textures de sol qui comptent comme "intérieur de bâtiment"
-    constexpr Map::Texture FLOOR_TEXTURES[] = {
+    // Floor textures that are classified as building interiors
+    constexpr GameMap::Texture FLOOR_TEXTURES[] = {
         Tiles::FLOOR_STONE_PLAIN.texture,
         Tiles::FLOOR_STONE_TILES.texture,
         Tiles::FLOOR_STONE_CROSS.texture,
@@ -30,8 +31,7 @@ namespace {
     };
 }
 
-void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& playZone) {
-    // Bits combinables : dans quelles directions part une tuile de chemin
+void MapGenerator::addHouseDoors(Map& map, std::mt19937& rng, const Rect& playZone) {
     enum Direction {
         UP = 1,
         RIGHT = 2,
@@ -39,7 +39,7 @@ void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& pl
         LEFT = 8
     };
 
-    // ---------- 2. Lecture de la map ----------
+    // ---------- 1. Reading the map ----------
     const int W = playZone.w;
     const int H = playZone.h;
     auto idx = [&](const int x, const int y) { return (y - playZone.y) * W + (x - playZone.x); };
@@ -49,19 +49,19 @@ void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& pl
 
     auto isFloor = [&](const int x, const int y) {
         if (!inZone(x, y)) return false;
-        for (const Map::Tile& t : map.cells[y][x].layers) {
-            if (t.zIndex != Map::ZIndex::Layer1) continue;
-            for (const Map::Texture& f : FLOOR_TEXTURES) {
+        for (const GameMap::Tile& t : map.cells[y][x].layers) {
+            if (t.zIndex != GameMap::ZIndex::Layer1) continue;
+            for (const GameMap::Texture& f : FLOOR_TEXTURES) {
                 if (t.texture.col == f.col && t.texture.row == f.row) return true;
             }
         }
         return false;
     };
 
-    // Directions dans lesquelles une tuile de chemin est ouverte (même conventions que addHousePaths)
-    auto connections = [&](const Map::Tile& t) -> int {
+    // Calculate open connectivity direction mask for path tiles (matching addHousePaths conventions)
+    auto connections = [&](const GameMap::Tile& t) -> int {
         const int rot = ((t.modifier.rotation % 360) + 360) % 360;
-        auto is = [&](const Map::Tile& ref) {
+        auto is = [&](const GameMap::Tile& ref) {
             return t.texture.col == ref.texture.col && t.texture.row == ref.texture.row;
         };
 
@@ -77,7 +77,6 @@ void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& pl
             }
         }
         if (is(Tiles::PATH_T_JUNCTION)) {
-            // La rotation désigne la branche manquante : 0 = bas, 90 = gauche, 180 = haut, 270 = droite
             int missing = RIGHT;
             if (rot == 0)        missing = DOWN;
             else if (rot == 90)  missing = LEFT;
@@ -96,17 +95,17 @@ void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& pl
         return 0;
     };
 
-    // Direction dans laquelle la case (x, y) est ouverte, d'après sa tuile de chemin sur Layer1
+    // Retrieve open direction mask for cell (x, y) based on Layer1 path tiles
     auto pathOpenings = [&](const int x, const int y) {
         if (!inZone(x, y)) return 0;
         int mask = 0;
-        for (const Map::Tile& t : map.cells[y][x].layers) {
-            if (t.zIndex == Map::ZIndex::Layer1) mask |= connections(t);
+        for (const GameMap::Tile& t : map.cells[y][x].layers) {
+            if (t.zIndex == GameMap::ZIndex::Layer1) mask |= connections(t);
         }
         return mask;
     };
 
-    // ---------- 3. Un bâtiment = un rectangle de sol ----------
+    // ---------- 3. Identify Building Footprints (Connected Floor Rectangles) ----------
     struct Candidate { int wx, wy, rotation; bool connected; bool outsideFree; };
 
     std::vector<char> visited(W * H, 0);
@@ -126,15 +125,19 @@ void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& pl
             }
             if (w < 3 || h < 3) continue;
 
-            // ---------- 4. Murs droits candidats ----------
+            // ---------- 4. Generate Candidate Straight Wall Tiles ----------
             std::vector<Candidate> candidates;
-            // (wx, wy) : case de mur ; (ox, oy) : case devant ; toward : direction de (ox, oy) vers le mur
+
+            // (wx, wy): wall tile position;
+            // (ox, oy): outer tile in front;
+            // toward: direction from (ox, oy) to the wall
             auto addCandidate = [&](const int wx, const int wy, const int ox, const int oy,
                                     const int toward, const int rotation) {
                 const bool connected  = (pathOpenings(ox, oy) & toward) != 0;
                 const bool outsideFree = inZone(ox, oy) && !isFloor(ox, oy);
                 candidates.push_back({ wx, wy, rotation, connected, outsideFree });
             };
+
             for (int i = 1; i < w - 1; ++i) {
                 addCandidate(x + i, y,         x + i, y - 1, DOWN, ROT_TOP);
                 addCandidate(x + i, y + h - 1, x + i, y + h, UP,   ROT_BOTTOM);
@@ -144,11 +147,11 @@ void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& pl
                 addCandidate(x + w - 1, y + j, x + w, y + j, LEFT,  ROT_RIGHT);
             }
 
-            // ---------- 5. Poser les portes ----------
+            // ---------- 5. Door Placement ----------
             auto placeDoor = [&](const Candidate& c) {
-                Map::Tile tile = DOOR_TILES[DOOR_PICK(rng)];
+                GameMap::Tile tile = DOOR_TILES[DOOR_PICK(rng)];
                 tile.modifier.rotation = c.rotation;
-                addTile(map, c.wx, c.wy, tile, Map::ZIndex::Layer2);
+                addTile(map, c.wx, c.wy, tile, GameMap::ZIndex::Layer2);
             };
 
             int placed = 0;
@@ -158,7 +161,7 @@ void MapGenerator::addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& pl
                 ++placed;
             }
 
-            // Aucun chemin n'arrive ici : une porte au hasard sur un mur dégagé
+            // If no path connects directly, place a door randomly on any open, clear outer wall
             if (placed == 0) {
                 std::vector<int> free;
                 for (int k = 0; k < static_cast<int>(candidates.size()); ++k) {

@@ -13,23 +13,24 @@ struct Rect {
 
 class MapGenerator {
 public:
-    static TileMap generateMap(int height, int width, unsigned int seed);
+    static Map generateMap(int height, int width, unsigned int seed);
 
 private:
-    static void initMap(TileMap& map, int height, int width);
-    static void addTile(TileMap& map, int x, int y, Map::Tile tile, int zIndex);
-    static bool isTileEmpty(const TileMap& map, int x, int y, int zIndex);
+    static void initMap(Map& map, int height, int width);
+    static void addTile(Map& map, int x, int y, GameMap::Tile tile, int zIndex);
+    static bool isTileEmpty(const Map& map, int x, int y, int zIndex);
 
-    static void buildMapBorder(TileMap& map, std::mt19937& rng, int margin);
-    static void addGuardPaths(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void addRailPaths(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void buildHouseFloors(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void buildDirtZones(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void correctionsGuardPaths(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void buildHouseWalls(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void addHousePaths(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void addHouseDoors(TileMap& map, std::mt19937& rng, const Rect& playZone);
-    static void addDecorations(TileMap& map, std::mt19937& rng, const Rect& playZone);
+    static void buildMapBorder(Map& map, std::mt19937& rng, int margin);
+    static void addGuardPaths(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void addRailPaths(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void buildHouseFloors(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void buildHouseWalls(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void addHousePaths(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void addHouseDoors(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void addHouseDecorations(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void addDecorations(Map& map, std::mt19937& rng, const Rect& playZone);
 };
 
 #endif // GOULAG_MAPGENERATOR_H

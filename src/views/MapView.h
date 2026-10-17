@@ -9,11 +9,11 @@ public:
     MapView();
     ~MapView();
 
-    void drawMap(sf::RenderWindow& window, const TileMap& map);
+    void drawMap(sf::RenderWindow& window, const Map& map);
 private:
     sf::Texture texture;
 
-    void drawTile(sf::RenderWindow& window, const Map::Tile& tile, int i, int j) const;
+    void drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, int i, int j) const;
 
     // For testing
     sf::View view;

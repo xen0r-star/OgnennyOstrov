@@ -15,13 +15,13 @@ MapView::MapView() {
 
 MapView::~MapView() = default;
 
-void MapView::drawTile(sf::RenderWindow& window, const Map::Tile& tile, const int x, const int y) const {
+void MapView::drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, const int x, const int y) const {
     const sf::IntRect rect(
         tile.texture.col * TILE_SIZE, tile.texture.row * TILE_SIZE,
         TILE_SIZE, TILE_SIZE
     );
 
-    const Map::Modifier& m = tile.modifier;
+    const GameMap::Modifier& m = tile.modifier;
 
     sf::Sprite sprite(texture, rect);
     sprite.setOrigin(TILE_SIZE / 2.f, TILE_SIZE / 2.f);
@@ -34,7 +34,7 @@ void MapView::drawTile(sf::RenderWindow& window, const Map::Tile& tile, const in
     window.draw(sprite);
 }
 
-void MapView::drawMap(sf::RenderWindow& window, const TileMap& map) {
+void MapView::drawMap(sf::RenderWindow& window, const Map& map) {
     // For testing
     if (!viewInitialized) {
         viewInitialized = true;
@@ -61,16 +61,16 @@ void MapView::drawMap(sf::RenderWindow& window, const TileMap& map) {
 
 
     static constexpr int zPasses[] = {
-        Map::ZIndex::Layer0,
-        Map::ZIndex::Layer1,
-        Map::ZIndex::Layer2,
-        Map::ZIndex::Layer3
+        GameMap::ZIndex::Layer0,
+        GameMap::ZIndex::Layer1,
+        GameMap::ZIndex::Layer2,
+        GameMap::ZIndex::Layer3
     };
 
     for (const int z : zPasses) {
         for (int y = 0; y < map.height; ++y) {
             for (int x = 0; x < map.width; ++x) {
-                for (const Map::Tile& tile : map.cells[y][x].layers) {
+                for (const GameMap::Tile& tile : map.cells[y][x].layers) {
                     if (tile.zIndex == z) {
                         drawTile(window, tile, x, y);
                     }
