@@ -76,7 +76,6 @@
       <Add directory="deps/SFML/include" />
     </Compiler>
     <Linker>
-      <Add option="-static" />
       <Add directory="deps/SFML/lib" />
     </Linker>
     <ExtraCommands>
