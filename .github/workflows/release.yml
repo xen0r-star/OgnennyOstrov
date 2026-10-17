@@ -141,7 +141,7 @@ jobs:
           name: release-asset-server-linux
           path: OgnennyOstrov-*-Server-Linux.zip
 
-  # --- JOB 3: Build Windows Client & Server independently (MSYS2 MinGW) ---
+    # --- JOB 3: Build Windows Client & Server independently (MinGW 8.1.0, comme Code::Blocks) ---
   build-game-windows:
     runs-on: windows-latest
     continue-on-error: true
@@ -151,25 +151,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up MSYS2 and MinGW
-        uses: msys2/setup-msys2@v2
+      - name: Install MinGW 8.1.0
+        uses: egor-tensin/setup-mingw@v2
         with:
-          msystem: MINGW64
-          update: true
-          install: git mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake make
+          platform: x64
+          version: 8.1.0
 
       - name: Configure CMake (Windows)
-        shell: msys2 {0}
+        shell: bash
         run: |
-          mkdir build
-          cd build
-          cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+          g++ --version
+          mkdir build && cd build
+          cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build and Package Client (Windows)
-        shell: msys2 {0}
+        shell: bash
         run: |
           cd build
-          cmake --build . --target OgnennyOstrov --config Release || true
+          cmake --build . --target OgnennyOstrov --config Release
 
           mkdir -p ../dist-client
           find . -name "OgnennyOstrov.exe" -exec cp {} ../dist-client/ \;
@@ -179,6 +178,13 @@ jobs:
           if [ -d "../docs" ]; then cp -r ../docs ../dist-client/; fi
           cp ../README* ../LICENSE* ../dist-client/ 2>/dev/null || true
 
+          echo "--- DLLs required by the client ---"
+          objdump -p ../dist-client/OgnennyOstrov.exe | grep "DLL Name"
+          if objdump -p ../dist-client/OgnennyOstrov.exe | grep -Ei "libstdc\+\+|libgcc|libwinpthread"; then
+            echo "::error::The client still relies on the MinGW runtime (check for ‘-static’ in CMakeLists.txt)"
+            exit 1
+          fi
+
       - name: Create Client ZIP (Windows)
         shell: pwsh
         run: |
@@ -186,16 +192,16 @@ jobs:
           Compress-Archive -Path "dist-client\*" -DestinationPath "OgnennyOstrov-$tag-Client-Windows.zip" -Force
 
       - name: Build and Package Server (Windows)
-        shell: msys2 {0}
+        shell: bash
         run: |
           cd build
-          cmake --build . --target OgnennyOstrovServer --config Release || true
+          cmake --build . --target OgnennyOstrovServer --config Release
 
           mkdir -p ../dist-server
           find . -name "OgnennyOstrovServer.exe" -exec cp {} ../dist-server/ \;
 
-          if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/ 2>/dev/null || true; fi
-          if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/ 2>/dev/null || true; fi
+          if [ -f "../deps/SFML/bin/sfml-system-2.dll" ]; then cp ../deps/SFML/bin/sfml-system-2.dll ../dist-server/; fi
+          if [ -f "../deps/SFML/bin/sfml-network-2.dll" ]; then cp ../deps/SFML/bin/sfml-network-2.dll ../dist-server/; fi
           if [ -d "../docs" ]; then cp -r ../docs ../dist-server/; fi
           cp ../README* ../LICENSE* ../dist-server/ 2>/dev/null || true
 

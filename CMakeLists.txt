@@ -4,6 +4,10 @@ project(OgnennyOstrov LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(MINGW)
+    add_link_options(-static)
+endif()
+
 set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 if(WIN32)
