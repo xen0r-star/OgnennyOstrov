@@ -39,7 +39,7 @@ private:
     OptionsView options;
 
     // Game data
-    TileMap map;
+    Map map;
     MapView mapView;
 };
 

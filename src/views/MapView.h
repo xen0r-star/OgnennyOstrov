@@ -9,15 +9,11 @@ public:
     MapView();
     ~MapView();
 
-    void drawMap(sf::RenderWindow& window, const TileMap& map);
-
-    // For testing
-    void handleEvent(const sf::Event& event, sf::RenderWindow& window);
+    void drawMap(sf::RenderWindow& window, const Map& map);
 private:
     sf::Texture texture;
 
-    static float angleToDegrees(Angle angle);
-    void drawTile(sf::RenderWindow& window, const Tile& tile, int i, int j) const;
+    void drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, int i, int j) const;
 
     // For testing
     sf::View view;

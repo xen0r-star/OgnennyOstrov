@@ -33,8 +33,8 @@ Game::Game() {
 }
 
 void Game::startGame() {
-    std::random_device rd;
-    map = MapGenerator::generateMap(50, 50, static_cast<int>(rd()));
+    const int seed = static_cast<int>(std::time(nullptr));
+    map = MapGenerator::generateMap(65, 65, seed);
     state = GameState::Playing;
 }
 
@@ -83,11 +83,8 @@ void Game::processEvents() {
                     break;
                 }
 
-                // For testing
-                mapView.handleEvent(event, window);
-
-                // Input Controller
-                break;
+            // Input Controller
+            break;
         }
     }
 }
