@@ -35,18 +35,15 @@ file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS
 )
 list(APPEND SERVER_SOURCES "${SRC}/core/GameServer.cpp")
 
-# ---------- Lib shared ----------
-add_library(OgnennyOstrovShared STATIC ${SHARED_SOURCES})
-target_include_directories(OgnennyOstrovShared PUBLIC ${SRC})
-target_link_libraries(OgnennyOstrovShared PUBLIC sfml-system sfml-network)
-
 # ---------- Client ----------
-add_executable(OgnennyOstrov ${SRC}/main.cpp ${CLIENT_SOURCES})
-target_link_libraries(OgnennyOstrov PRIVATE OgnennyOstrovShared sfml-graphics sfml-window sfml-audio)
+add_executable(OgnennyOstrov ${SRC}/main.cpp ${SHARED_SOURCES} ${CLIENT_SOURCES})
+target_include_directories(OgnennyOstrov PRIVATE ${SRC})
+target_link_libraries(OgnennyOstrov PRIVATE sfml-system sfml-network sfml-audio sfml-graphics sfml-window)
 
 # ---------- Server ----------
-add_executable(OgnennyOstrovServer ${SRC}/main_server.cpp ${SERVER_SOURCES})
-target_link_libraries(OgnennyOstrovServer PRIVATE OgnennyOstrovShared sfml-system sfml-network)
+add_executable(OgnennyOstrov_Server ${SRC}/main_server.cpp ${SHARED_SOURCES} ${SERVER_SOURCES})
+target_include_directories(OgnennyOstrov_Server PRIVATE ${SRC})
+target_link_libraries(OgnennyOstrov_Server PRIVATE sfml-system sfml-network)
 
 # ---------- Post-build (Windows uniquement) ----------
 if(WIN32)
@@ -60,7 +57,7 @@ if(WIN32)
     endfunction()
 
     copy_sfml_dlls(OgnennyOstrov)
-    copy_sfml_dlls(OgnennyOstrovServer)
+    copy_sfml_dlls(OgnennyOstrov_Server)
 
     # Assets copy for client
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")

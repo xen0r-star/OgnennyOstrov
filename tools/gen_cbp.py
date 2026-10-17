@@ -3,8 +3,8 @@ import pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
 tpl = (root / "tools/OgnennyOstrov.cbp.in").read_text(encoding="utf-8")
 
-CLIENT = ["Client_Debug", "Client_Release"]
-SERVER = ["Server_Debug", "Server_Release"]
+CLIENT = ["Client"]
+SERVER = ["Server"]
 ALL = CLIENT + SERVER
 
 def targets_for(rel: str):

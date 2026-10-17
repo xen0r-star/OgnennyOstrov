@@ -6,24 +6,7 @@
     <Option pch_mode="2" />
     <Option compiler="gcc" />
     <Build>
-      <Target title="Client_Debug">
-        <Option output="bin/Client/Debug/OgnennyOstrov" prefix_auto="1" extension_auto="1" />
-        <Option working_dir="bin/Client/Debug/" />
-        <Option object_output="obj/Client/Debug/" />
-        <Option type="1" />
-        <Option compiler="gcc" />
-        <Compiler>
-          <Add option="-g" />
-        </Compiler>
-        <Linker>
-          <Add library="sfml-graphics-d" />
-          <Add library="sfml-window-d" />
-          <Add library="sfml-network-d" />
-          <Add library="sfml-system-d" />
-          <Add library="sfml-audio-d" />
-        </Linker>
-      </Target>
-      <Target title="Client_Release">
+      <Target title="Client">
         <Option output="bin/Client/Release/OgnennyOstrov" prefix_auto="1" extension_auto="1" />
         <Option working_dir="bin/Client/Release/" />
         <Option object_output="obj/Client/Release/" />
@@ -38,24 +21,10 @@
           <Add library="sfml-window" />
           <Add library="sfml-network" />
           <Add library="sfml-system" />
-        </Linker>
-      </Target>
-      <Target title="Server_Debug">
-        <Option output="bin/Server/Debug/OgnennyOstrovServer" prefix_auto="1" extension_auto="1" />
-        <Option working_dir="bin/Server/Debug/" />
-        <Option object_output="obj/Server/Debug/" />
-        <Option type="1" />
-        <Option compiler="gcc" />
-        <Compiler>
-          <Add option="-g" />
-        </Compiler>
-        <Linker>
-          <Add library="sfml-network-d" />
-          <Add library="sfml-system-d" />
           <Add library="sfml-audio" />
         </Linker>
       </Target>
-      <Target title="Server_Release">
+      <Target title="Server">
         <Option output="bin/Server/Release/OgnennyOstrovServer" prefix_auto="1" extension_auto="1" />
         <Option working_dir="bin/Server/Release/" />
         <Option object_output="obj/Server/Release/" />
