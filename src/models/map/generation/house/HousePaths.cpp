@@ -48,7 +48,7 @@ namespace {
         Tiles::PATH_T_JUNCTION.texture,
         Tiles::PATH_CURVE_2.texture,
         Tiles::PATH_STRAIGHT_2.texture,
-        Tiles::PATH_ARROW.texture,
+        Tiles::PATH_STRAIGHT_1_TO_2.texture,
         Tiles::PATH_END.texture,
     };
     // Rail textures (Layer2)

@@ -14,8 +14,8 @@ Game::Game() {
 
     ShowWindow(window.getSystemHandle(), SW_MAXIMIZE);
 
-    std::random_device rd;
-    map = MapGenerator::generateMap(65, 65, static_cast<int>(rd()));
+    const int seed = static_cast<int>(std::time(nullptr));
+    map = MapGenerator::generateMap(65, 65, seed);
 }
 
 Game::~Game() = default;

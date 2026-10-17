@@ -43,8 +43,8 @@ namespace Tiles {
     inline constexpr auto PATH_T_JUNCTION           = GameMap::Tile(GameMap::Texture(8, 5));
     inline constexpr auto PATH_CURVE_2              = GameMap::Tile(GameMap::Texture(5, 2));
     inline constexpr auto PATH_STRAIGHT_2           = GameMap::Tile(GameMap::Texture(5, 3));
-    inline constexpr auto PATH_ARROW                = GameMap::Tile(GameMap::Texture(5, 4));
-    inline constexpr auto PATH_END                  = GameMap::Tile(GameMap::Texture(5, 5));
+    inline constexpr auto PATH_END                  = GameMap::Tile(GameMap::Texture(5, 4));
+    inline constexpr auto PATH_STRAIGHT_1_TO_2      = GameMap::Tile(GameMap::Texture(5, 5));
 
     inline constexpr auto PROP_CAMPFIRE             = GameMap::Tile(GameMap::Texture(6, 0));
     inline constexpr auto PROP_GRASS_TUFT           = GameMap::Tile(GameMap::Texture(6, 1));
