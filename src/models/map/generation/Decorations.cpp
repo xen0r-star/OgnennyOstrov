@@ -38,8 +38,8 @@ namespace {
     constexpr Style TREE {
         .tile = Tiles::PROP_TREE,
         .offset = 12.f,
-        .scaleMin = 0.85f,
-        .scaleMax = 1.25f,
+        .scaleMin = 1.5f,
+        .scaleMax = 2.0f,
         .big = true
     };
 

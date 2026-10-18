@@ -43,6 +43,16 @@ namespace GameMap {
             this->modifier = modifier;
         }
     };
+
+    enum class HouseRole { Mess, Storage, Dorm };
+
+    struct HouseInfo {
+        int x = 0;
+        int y = 0;
+        int w = 0;
+        int h = 0;
+        HouseRole role = HouseRole::Dorm;
+    };
 }
 
 struct MapCell {
@@ -54,6 +64,7 @@ struct Map {
     int width = 0;
 
     std::vector<std::vector<MapCell>> cells = std::vector<std::vector<MapCell>>();
+    std::vector<GameMap::HouseInfo> houses = std::vector<GameMap::HouseInfo>();
 };
 
 #endif // GOULAG_TILE_H

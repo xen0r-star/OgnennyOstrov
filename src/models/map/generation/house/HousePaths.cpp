@@ -27,15 +27,6 @@ namespace {
     constexpr int ROT_END_DOWN       = 180;
     constexpr int ROT_END_LEFT       = 270;
 
-    // Floor textures that count as "building interior"
-    constexpr GameMap::Texture FLOOR_TEXTURES[] = {
-        Tiles::FLOOR_STONE_PLAIN.texture,
-        Tiles::FLOOR_STONE_TILES.texture,
-        Tiles::FLOOR_STONE_CROSS.texture,
-        Tiles::FLOOR_STONE_PATTERN.texture,
-        Tiles::FLOOR_STONE_CRACKED.texture,
-        Tiles::FLOOR_WOOD_PLANKS.texture,
-    };
     // Dirt field texture (Layer0)
     constexpr GameMap::Texture DIRT_TEXTURES[] = {
         Tiles::GROUND_DIRT.texture,
@@ -91,7 +82,6 @@ void MapGenerator::addHousePaths(Map& map, std::mt19937& rng, const Rect& playZo
         }
         return false;
     };
-    constexpr int floorCount = std::size(FLOOR_TEXTURES);
     constexpr int pathCount  = std::size(PATH_TEXTURES);
     constexpr int railCount  = std::size(RAIL_TEXTURES);
 
@@ -122,30 +112,18 @@ void MapGenerator::addHousePaths(Map& map, std::mt19937& rng, const Rect& playZo
     std::vector<House> houses;
     std::vector<int> houseId(W * H, -1);
 
-    auto isFloor = [&](const int x, const int y) {
-        if (x < playZone.x || y < playZone.y || x >= playZone.x + W || y >= playZone.y + H) return false;
-        return hasTexture(x, y, GameMap::ZIndex::Layer1, FLOOR_TEXTURES, floorCount);
-    };
+    // Buildings come from map.houses (filled by buildHouseFloors)
+    for (const GameMap::HouseInfo & hi : map.houses) {
+        if (hi.w < 3 || hi.h < 3) continue;
 
-    for (int y = playZone.y; y < playZone.y + H; ++y) {
-        for (int x = playZone.x; x < playZone.x + W; ++x) {
-            if (houseId[idx(x, y)] >= 0 || !isFloor(x, y)) continue;
-
-            // Top-left corner found: measure the rectangle
-            int w = 0;
-            while (isFloor(x + w, y)) ++w;
-            int h = 0;
-            while (isFloor(x, y + h)) ++h;
-            if (w < 3 || h < 3) continue;
-
-            const int id = static_cast<int>(houses.size());
-            for (int yy = y; yy < y + h; ++yy) {
-                for (int xx = x; xx < x + w; ++xx) {
-                    houseId[idx(xx, yy)] = id;
-                }
+        const int id = static_cast<int>(houses.size());
+        for (int yy = hi.y; yy < hi.y + hi.h; ++yy) {
+            for (int xx = hi.x; xx < hi.x + hi.w; ++xx) {
+                if (xx < playZone.x || yy < playZone.y || xx >= playZone.x + W || yy >= playZone.y + H) continue;
+                houseId[idx(xx, yy)] = id;
             }
-            houses.push_back({ x, y, w, h, {} });
         }
+        houses.push_back({ hi.x, hi.y, hi.w, hi.h, {} });
     }
 
     const int n = static_cast<int>(houses.size());

@@ -1,6 +1,5 @@
 #include "models/map/MapGenerator.h"
 #include "models/map/Tiles.h"
-#include <iostream>
 #include <random>
 #include <vector>
 
@@ -19,16 +18,6 @@ namespace {
         Tiles::WALL_BROKEN_DOOR,
     };
     std::discrete_distribution DOOR_PICK({ 10.0, 0.0, 80.0, 10.0 });
-
-    // Floor textures that are classified as building interiors
-    constexpr GameMap::Texture FLOOR_TEXTURES[] = {
-        Tiles::FLOOR_STONE_PLAIN.texture,
-        Tiles::FLOOR_STONE_TILES.texture,
-        Tiles::FLOOR_STONE_CROSS.texture,
-        Tiles::FLOOR_STONE_PATTERN.texture,
-        Tiles::FLOOR_STONE_CRACKED.texture,
-        Tiles::FLOOR_WOOD_PLANKS.texture,
-    };
 }
 
 void MapGenerator::addHouseDoors(Map& map, std::mt19937& rng, const Rect& playZone) {
@@ -47,16 +36,16 @@ void MapGenerator::addHouseDoors(Map& map, std::mt19937& rng, const Rect& playZo
         return x >= playZone.x && y >= playZone.y && x < playZone.x + W && y < playZone.y + H;
     };
 
-    auto isFloor = [&](const int x, const int y) {
-        if (!inZone(x, y)) return false;
-        for (const GameMap::Tile& t : map.cells[y][x].layers) {
-            if (t.zIndex != GameMap::ZIndex::Layer1) continue;
-            for (const GameMap::Texture& f : FLOOR_TEXTURES) {
-                if (t.texture.col == f.col && t.texture.row == f.row) return true;
+    // Footprint mask of every building (from map.houses)
+    std::vector<char> inHouse(W * H, 0);
+    for (const GameMap::HouseInfo & hs : map.houses) {
+        for (int yy = hs.y; yy < hs.y + hs.h; ++yy) {
+            for (int xx = hs.x; xx < hs.x + hs.w; ++xx) {
+                if (inZone(xx, yy)) inHouse[idx(xx, yy)] = 1;
             }
         }
-        return false;
-    };
+    }
+    auto isHouse = [&](const int x, const int y) { return inZone(x, y) && inHouse[idx(x, y)]; };
 
     // Calculate open connectivity direction mask for path tiles (matching addHousePaths conventions)
     auto connections = [&](const GameMap::Tile& t) -> int {
@@ -105,72 +94,61 @@ void MapGenerator::addHouseDoors(Map& map, std::mt19937& rng, const Rect& playZo
         return mask;
     };
 
-    // ---------- 3. Identify Building Footprints (Connected Floor Rectangles) ----------
+    // ---------- 2. Doors, building by building ----------
     struct Candidate { int wx, wy, rotation; bool connected; bool outsideFree; };
 
-    std::vector<char> visited(W * H, 0);
-    for (int y = playZone.y; y < playZone.y + H; ++y) {
-        for (int x = playZone.x; x < playZone.x + W; ++x) {
-            if (visited[idx(x, y)] || !isFloor(x, y)) continue;
+    for (const GameMap::HouseInfo & house : map.houses) {
+        const int x = house.x;
+        const int y = house.y;
+        const int w = house.w;
+        const int h = house.h;
+        if (w < 3 || h < 3) continue;
 
-            int w = 0;
-            while (isFloor(x + w, y)) ++w;
-            int h = 0;
-            while (isFloor(x, y + h)) ++h;
+        // ---------- 3. Generate Candidate Straight Wall Tiles ----------
+        std::vector<Candidate> candidates;
 
-            for (int yy = y; yy < y + h; ++yy) {
-                for (int xx = x; xx < x + w; ++xx) {
-                    visited[idx(xx, yy)] = 1;
-                }
+        // (wx, wy): wall tile position;
+        // (ox, oy): outer tile in front;
+        // toward: direction from (ox, oy) to the wall
+        auto addCandidate = [&](const int wx, const int wy, const int ox, const int oy,
+                                const int toward, const int rotation) {
+            const bool connected   = (pathOpenings(ox, oy) & toward) != 0;
+            const bool outsideFree = inZone(ox, oy) && !isHouse(ox, oy);
+            candidates.push_back({ wx, wy, rotation, connected, outsideFree });
+        };
+
+        for (int i = 1; i < w - 1; ++i) {
+            addCandidate(x + i, y,         x + i, y - 1, DOWN, ROT_TOP);
+            addCandidate(x + i, y + h - 1, x + i, y + h, UP,   ROT_BOTTOM);
+        }
+        for (int j = 1; j < h - 1; ++j) {
+            addCandidate(x,         y + j, x - 1, y + j, RIGHT, ROT_LEFT);
+            addCandidate(x + w - 1, y + j, x + w, y + j, LEFT,  ROT_RIGHT);
+        }
+
+        // ---------- 4. Door Placement ----------
+        auto placeDoor = [&](const Candidate& c) {
+            GameMap::Tile tile = DOOR_TILES[DOOR_PICK(rng)];
+            tile.modifier.rotation = c.rotation;
+            addTile(map, c.wx, c.wy, tile, GameMap::ZIndex::Layer2);
+        };
+
+        int placed = 0;
+        for (const Candidate& c : candidates) {
+            if (!c.connected) continue;
+            placeDoor(c);
+            ++placed;
+        }
+
+        // If no path connects directly, place a door randomly on any open, clear outer wall
+        if (placed == 0) {
+            std::vector<int> free;
+            for (int k = 0; k < static_cast<int>(candidates.size()); ++k) {
+                if (candidates[k].outsideFree) free.push_back(k);
             }
-            if (w < 3 || h < 3) continue;
-
-            // ---------- 4. Generate Candidate Straight Wall Tiles ----------
-            std::vector<Candidate> candidates;
-
-            // (wx, wy): wall tile position;
-            // (ox, oy): outer tile in front;
-            // toward: direction from (ox, oy) to the wall
-            auto addCandidate = [&](const int wx, const int wy, const int ox, const int oy,
-                                    const int toward, const int rotation) {
-                const bool connected  = (pathOpenings(ox, oy) & toward) != 0;
-                const bool outsideFree = inZone(ox, oy) && !isFloor(ox, oy);
-                candidates.push_back({ wx, wy, rotation, connected, outsideFree });
-            };
-
-            for (int i = 1; i < w - 1; ++i) {
-                addCandidate(x + i, y,         x + i, y - 1, DOWN, ROT_TOP);
-                addCandidate(x + i, y + h - 1, x + i, y + h, UP,   ROT_BOTTOM);
-            }
-            for (int j = 1; j < h - 1; ++j) {
-                addCandidate(x,         y + j, x - 1, y + j, RIGHT, ROT_LEFT);
-                addCandidate(x + w - 1, y + j, x + w, y + j, LEFT,  ROT_RIGHT);
-            }
-
-            // ---------- 5. Door Placement ----------
-            auto placeDoor = [&](const Candidate& c) {
-                GameMap::Tile tile = DOOR_TILES[DOOR_PICK(rng)];
-                tile.modifier.rotation = c.rotation;
-                addTile(map, c.wx, c.wy, tile, GameMap::ZIndex::Layer2);
-            };
-
-            int placed = 0;
-            for (const Candidate& c : candidates) {
-                if (!c.connected) continue;
-                placeDoor(c);
-                ++placed;
-            }
-
-            // If no path connects directly, place a door randomly on any open, clear outer wall
-            if (placed == 0) {
-                std::vector<int> free;
-                for (int k = 0; k < static_cast<int>(candidates.size()); ++k) {
-                    if (candidates[k].outsideFree) free.push_back(k);
-                }
-                if (!free.empty()) {
-                    std::uniform_int_distribution<int> pick(0, static_cast<int>(free.size()) - 1);
-                    placeDoor(candidates[free[pick(rng)]]);
-                }
+            if (!free.empty()) {
+                std::uniform_int_distribution<int> pick(0, static_cast<int>(free.size()) - 1);
+                placeDoor(candidates[free[pick(rng)]]);
             }
         }
     }
