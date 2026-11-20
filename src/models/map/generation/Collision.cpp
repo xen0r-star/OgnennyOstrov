@@ -1,116 +1,105 @@
+#include "core/Config.h"
 #include "models/map/MapGenerator.h"
 #include "models/map/Tiles.h"
 
-#include <initializer_list>
+#include <nlohmann/json.hpp>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <utility>
 
 namespace {
+    using json = nlohmann::json;
+
+    // (col, row) of a tile in map.png -> its hitbox shapes, with points between 0 and 1
+    using HitboxLibrary = std::map<std::pair<int, int>, std::vector<Hitbox::Polygon>>;
+
+    constexpr auto HITBOX_FILE = "assets/hitboxes/tiles.json";
+    constexpr float PI = 3.14159265f;
 
     bool isTile(const GameMap::Tile& a, const GameMap::Tile& b) {
         return a.texture.col == b.texture.col && a.texture.row == b.texture.row;
     }
 
-    CollisionMask makeMask(const std::initializer_list<const char*> rows) {
-        CollisionMask m{};
-        int y = 0;
-        for (const char* row : rows) {
-            for (int x = 0; x < MASK_SIZE; ++x) {
-                m[y * MASK_SIZE + x] = (row[x] == '#');
-            }
-            ++y;
+    HitboxLibrary loadHitboxes() {
+        HitboxLibrary library;
+
+        std::ifstream file(HITBOX_FILE);
+        if (!file) {
+            std::cerr << "Failed to load " << HITBOX_FILE << "\n";
+            return library;
         }
-        return m;
-    }
 
-    CollisionMask fullMask() {
-        CollisionMask m{};
-        m.fill(true);
-        return m;
-    }
+        try {
+            const json data = json::parse(file);
 
-    bool isObstacleObject(const GameMap::Tile& t) {
-        using namespace Tiles;
-        return isTile(t, OBJECT_LARGE_CRATE_WOODEN) || isTile(t, OBJECT_SMALL_CRATE_WOODEN)
-            || isTile(t, OBJECT_LARGE_BARREL_TOP)   || isTile(t, OBJECT_SMALL_BARREL_TOP)
-            || isTile(t, OBJECT_BARRELS_CLUSTER_1)  || isTile(t, OBJECT_BARRELS_CLUSTER_2)
-            || isTile(t, OBJECT_TABLE)              || isTile(t, OBJECT_CHAIR)
-            || isTile(t, OBJECT_BED)                || isTile(t, OBJECT_BED_2)
-            || isTile(t, OBJECT_BOARD)              || isTile(t, CART_WOODEN)
-            || isTile(t, PROP_CAMPFIRE);
-    }
+            for (const auto& tile : data.at("tiles")) {
+                std::vector<Hitbox::Polygon> polygons;
 
-    CollisionMask moveMaskOf(const GameMap::Tile& t) {
-        using namespace Tiles;
-        if (isTile(t, WALL_BARBED_WIRE) || isTile(t, WATCHTOWER) || isTile(t, PROP_TREE))
-            return fullMask();
-
-        if (isTile(t, WALL_STRAIGHT) || isTile(t, WALL_WINDOWS) || isTile(t, WALL_WEAK)
-            || isTile(t, WALL_STRAIGHT_SHORT))
-            return makeMask({ "######", "######", "......", "......", "......", "......" });
-
-        if (isTile(t, WALL_CORNER_OUTER))
-            return makeMask({ "######", "######", "##....", "##....", "##....", "##...." });
-
-        if (isTile(t, WALL_CORNER_INNER))
-            return makeMask({ "##....", "##....", "......", "......", "......", "......" });
-
-        if (isTile(t, WALL_DOORWAY_OPEN))
-            return makeMask({ "#....#", "#....#", ".....#", ".....#", ".....#", ".....#" });
-
-        if (isTile(t, WALL_DOOR_FRAME) || isTile(t, WALL_BROKEN_DOOR))
-            return makeMask({ "#....#", "#....#", "......", "......", "......", "......" });
-
-        if (isTile(t, WALL_DOORWAY_CLOSE))
-            return makeMask({ "######", "#....#", "......", "......", "......", "......" });
-
-        if (isObstacleObject(t)) return fullMask();
-        return {};
-    }
-
-    CollisionMask sightMaskOf(const GameMap::Tile& t) {
-        if (isObstacleObject(t)) return {};
-        return moveMaskOf(t);
-    }
-
-    // Clockwise quarter turn: (x, y) -> (MASK_SIZE - 1 - y, x)
-    CollisionMask rotateMask(const CollisionMask& m, const int quarterTurns) {
-        CollisionMask out = m;
-        for (int k = 0; k < quarterTurns; ++k) {
-            CollisionMask next{};
-            for (int y = 0; y < MASK_SIZE; ++y) {
-                for (int x = 0; x < MASK_SIZE; ++x) {
-                    if (out[y * MASK_SIZE + x]) {
-                        next[x * MASK_SIZE + (MASK_SIZE - 1 - y)] = true;
+                for (const auto& hitbox : tile.at("hitboxes")) {
+                    Hitbox::Polygon polygon;
+                    for (const auto& point : hitbox.at("points")) {
+                        polygon.points.emplace_back(point.at(0).get<float>(), point.at(1).get<float>());
                     }
+                    polygons.push_back(polygon);
                 }
+
+                library[{tile.at("col").get<int>(), tile.at("row").get<int>()}] = polygons;
             }
-            out = next;
+        } catch (const json::exception& error) {
+            std::cerr << "Invalid " << HITBOX_FILE << ": " << error.what() << "\n";
         }
-        return out;
+        return library;
     }
 
-    // Rotation is stored in degrees (0, 90, 180, 270)
-    int quarterTurnsOf(const GameMap::Tile& t) {
-        return (((t.modifier.rotation % 360) + 360) % 360) / 90;
+    // Moves a point of the JSON (0..1 inside the tile) to its place in the world.
+    // Same steps as MapView::drawTile, so the hitbox always matches what is drawn:
+    // scale -> rotation around the center of the tile -> offset -> position of the cell.
+    sf::Vector2f toWorld(const sf::Vector2f& point, const GameMap::Tile& tile, const int cellX, const int cellY) {
+        const GameMap::Modifier& modifier = tile.modifier;
+        constexpr float half = TILE_SIZE / 2.f;
+
+        // Position relative to the center of the tile, in pixels
+        const float x = (point.x * TILE_SIZE - half) * modifier.scale;
+        const float y = (point.y * TILE_SIZE - half) * modifier.scale;
+
+        const float angle = static_cast<float>(modifier.rotation) * PI / 180.f;
+        const float rotatedX = x * std::cos(angle) - y * std::sin(angle);
+        const float rotatedY = x * std::sin(angle) + y * std::cos(angle);
+
+        return {
+            static_cast<float>(cellX * TILE_STEP) + half + modifier.offsetX + rotatedX,
+            static_cast<float>(cellY * TILE_STEP) + half + modifier.offsetY + rotatedY
+        };
     }
 }
 
 void MapGenerator::buildCollision(Map& map) {
+    const HitboxLibrary library = loadHitboxes();
+
     for (int y = 0; y < map.height; ++y) {
         for (int x = 0; x < map.width; ++x) {
             MapCell& cell = map.cells[y][x];
 
-            // If ONE layer blocks a sub-cell, the whole cell blocks it (logical OR)
             for (const GameMap::Tile& tile : cell.layers) {
-                const int turns = quarterTurnsOf(tile);
-                const CollisionMask move  = rotateMask(moveMaskOf(tile),  turns);
-                const CollisionMask sight = rotateMask(sightMaskOf(tile), turns);
-
-                for (std::size_t i = 0; i < cell.blocksMovement.size(); ++i) {
-                    cell.blocksMovement[i] = cell.blocksMovement[i] || move[i];
-                    cell.blocksSight[i]    = cell.blocksSight[i]    || sight[i];
+                // A bush doesn't block, it only hides the player
+                if (isTile(tile, Tiles::PROP_BUSH)) {
+                    cell.hides = true;
+                    continue;
                 }
 
-                if (isTile(tile, Tiles::PROP_BUSH)) cell.hides = true;
+                // No entry in the JSON = no hitbox = we can walk through
+                const auto found = library.find({tile.texture.col, tile.texture.row});
+                if (found == library.end()) continue;
+
+                for (const Hitbox::Polygon& shape : found->second) {
+                    Hitbox::Polygon polygon;
+                    for (const sf::Vector2f& point : shape.points) {
+                        polygon.points.push_back(toWorld(point, tile, x, y));
+                    }
+                    cell.hitboxes.push_back(polygon);
+                }
             }
         }
     }

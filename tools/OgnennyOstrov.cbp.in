@@ -45,6 +45,7 @@
       <Add option="-Wall" />
       <Add directory="src" />
       <Add directory="deps/SFML/include" />
+      <Add directory="deps/json" />
     </Compiler>
     <Linker>
       <Add directory="deps/SFML/lib" />

@@ -4,9 +4,8 @@
 
 
 class PlayerController {
-
-    public:
-        void update(Prisoner& prisoner);
+public:
+  static void update(Prisoner& prisoner);
 };
 
 

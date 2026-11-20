@@ -1,9 +1,9 @@
 #include "models/entities/Prisoner.h"
-#include "core/Config.h"   // pour TILE_STEP
+#include "core/Config.h"
 #include "models/map/Tile.h"
+#include "models/map/Hitbox.h"
 #include <cmath>
 #include <algorithm>
-#include <cstdlib>
 
 Prisoner::Prisoner(const sf::Vector2f position) : position(position) {}
 
@@ -34,39 +34,28 @@ void Prisoner::update(const sf::Time dt, const Map& map) {
 }
 
 
-int Prisoner::toSubcell(const float pixel) {
-    return static_cast<int>(std::floor(pixel / SUBCELL_SIZE));
-}
+bool Prisoner::canStandAt(const sf::Vector2f pos, const Map& map) {
+    // Outside of the map: forbidden
+    if (pos.x - HITBOX_RADIUS < 0.f || pos.y - HITBOX_RADIUS < 0.f ||
+        pos.x + HITBOX_RADIUS > static_cast<float>(map.width * TILE_STEP) ||
+        pos.y + HITBOX_RADIUS > static_cast<float>(map.height * TILE_STEP)) {
+        return false;
+    }
 
-bool Prisoner::canStandAt(const sf::Vector2f pos, const Map& map) const {
-    // On teste une grille de points sur la hitbox, espacés de SUBCELL_SIZE (20 px) au maximum,
-    // pour ne jamais "rater" une sous-case bloquée entre deux points.
-    // HITBOX_HALF = 30 : 60 / 20 = 3 intervalles -> 4 x 4 = 16 points.
-    const int steps = static_cast<int>(std::ceil(2.f * HITBOX_HALF / SUBCELL_SIZE));
-    const float width = 2.f * HITBOX_HALF;
+    // We only check the cell of the prisoner and its 8 neighbours
+    const int cellX = static_cast<int>(std::floor(pos.x / TILE_STEP));
+    const int cellY = static_cast<int>(std::floor(pos.y / TILE_STEP));
 
-    for (int i = 0; i <= steps; ++i) {
-        const float px = pos.x - HITBOX_HALF + width * i / steps;
-        for (int j = 0; j <= steps; ++j) {
-            const float py = pos.y - HITBOX_HALF + width * j / steps;
-            if (!isWalkable(toSubcell(px), toSubcell(py), map)) {
-                return false;   // un seul point bloqué suffit
+    for (int y = std::max(cellY - 1, 0); y <= std::min(cellY + 1, map.height - 1); ++y) {
+        for (int x = std::max(cellX - 1, 0); x <= std::min(cellX + 1, map.width - 1); ++x) {
+            for (const Hitbox::Polygon& polygon : map.cells[y][x].hitboxes) {
+                if (Hitbox::circleTouchesPolygon(pos, HITBOX_RADIUS, polygon)) {
+                    return false;   // one shape touched is enough
+                }
             }
         }
     }
     return true;
-}
-
-bool Prisoner::isWalkable(const int subX, const int subY, const Map& map) {
-    if (subX < 0 || subY < 0) return false;
-
-    const int cellX = subX / MASK_SIZE;   // quelle case de la carte
-    const int cellY = subY / MASK_SIZE;
-
-    if (cellX >= map.width || cellY >= map.height) return false;
-
-    const int index = (subY % MASK_SIZE) * MASK_SIZE + (subX % MASK_SIZE);
-    return !map.cells[cellY][cellX].blocksMovement[index];
 }
 
 sf::Vector2f Prisoner::cellCenter(const int cellX, const int cellY) {
@@ -79,9 +68,9 @@ bool Prisoner::canStandInCell(const int cellX, const int cellY, const Map& map) 
     return canStandAt(cellCenter(cellX, cellY), map);
 }
 
-// Tests every half sub-cell so a thin obstacle (closed door) can't slip between two tests
+// Tests every 10 px so a thin obstacle (closed door) can't slip between two tests
 bool Prisoner::canWalkToNeighborCell(const int cellX, const int cellY, const int dx, const int dy, const Map& map) const {
-    constexpr int steps = TILE_STEP / (SUBCELL_SIZE / 2);
+    constexpr int steps = TILE_STEP / 10;   // one test every 10 px
     const sf::Vector2f from = cellCenter(cellX, cellY);
     const sf::Vector2f to = cellCenter(cellX + dx, cellY + dy);
 
@@ -94,7 +83,7 @@ bool Prisoner::canWalkToNeighborCell(const int cellX, const int cellY, const int
 }
 
 int Prisoner::floodFillCells(const int startX, const int startY, const Map& map, std::vector<char>& visited) const {
-    std::vector<int> stack{startY * map.width + startX};
+    std::vector stack{startY * map.width + startX};
     visited[stack.back()] = 1;
     int count = 0;
 
@@ -105,10 +94,11 @@ int Prisoner::floodFillCells(const int startX, const int startY, const Map& map,
 
         const int x = current % map.width;
         const int y = current / map.width;
-        constexpr int dx[] = {1, -1, 0, 0};
-        constexpr int dy[] = {0, 0, 1, -1};
 
         for (int k = 0; k < 4; ++k) {
+            constexpr int dy[] = {0, 0, 1, -1};
+            constexpr int dx[] = {1, -1, 0, 0};
+
             const int nx = x + dx[k];
             const int ny = y + dy[k];
             if (nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;

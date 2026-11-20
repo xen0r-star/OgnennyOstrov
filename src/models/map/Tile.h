@@ -1,10 +1,9 @@
 #ifndef OGNENNYOSTROV_TILE_H
 #define OGNENNYOSTROV_TILE_H
 
-#include <array>
 #include <vector>
 
-#include "core/Config.h"
+#include "models/map/Hitbox.h"
 
 namespace GameMap {
     struct Texture {
@@ -48,14 +47,11 @@ namespace GameMap {
     };
 }
 
-using CollisionMask = std::array<bool, MASK_SIZE * MASK_SIZE>;
-
 struct MapCell {
     std::vector<GameMap::Tile> layers;
 
-    CollisionMask blocksMovement{};   // {} = all false: nothing blocks
-    CollisionMask blocksSight{};
-    bool hides = false;               // bush
+    std::vector<Hitbox::Polygon> hitboxes;   // shapes that block movement (in pixels, world coordinates)
+    bool hides = false;                      // bush
 };
 
 struct Map {

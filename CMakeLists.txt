@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(JSON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/json")   # nlohmann/json (single header)
 
 if(WIN32)
     set(SFML_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/SFML/lib/cmake/SFML" CACHE PATH "SFML CMake directory")
@@ -37,12 +38,12 @@ list(APPEND SERVER_SOURCES "${SRC}/core/GameServer.cpp")
 
 # ---------- Client ----------
 add_executable(OgnennyOstrov ${SRC}/main.cpp ${SHARED_SOURCES} ${CLIENT_SOURCES})
-target_include_directories(OgnennyOstrov PRIVATE ${SRC})
+target_include_directories(OgnennyOstrov PRIVATE ${SRC} ${JSON_DIR})
 target_link_libraries(OgnennyOstrov PRIVATE sfml-system sfml-network sfml-audio sfml-graphics sfml-window)
 
 # ---------- Server ----------
 add_executable(OgnennyOstrovServer ${SRC}/main_server.cpp ${SHARED_SOURCES} ${SERVER_SOURCES})
-target_include_directories(OgnennyOstrovServer PRIVATE ${SRC})
+target_include_directories(OgnennyOstrovServer PRIVATE ${SRC} ${JSON_DIR})
 target_link_libraries(OgnennyOstrovServer PRIVATE sfml-system sfml-network)
 
 # ---------- Post-build (Windows uniquement) ----------
