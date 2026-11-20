@@ -2,8 +2,8 @@
 // Created by amine on 06/10/2026.
 //
 
-#ifndef GOULAG_PRISONERVIEW_H
-#define GOULAG_PRISONERVIEW_H
+#ifndef OGNENNYOSTROV_PRISONERVIEW_H
+#define OGNENNYOSTROV_PRISONERVIEW_H
 #include "models/entities/Prisoner.h"
 #include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Sprite.hpp"
@@ -21,4 +21,4 @@ class PrisonerView {
 };
 
 
-#endif //GOULAG_PRISONERVIEW_H
+#endif //OGNENNYOSTROV_PRISONERVIEW_H

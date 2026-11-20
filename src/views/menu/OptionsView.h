@@ -1,5 +1,5 @@
-#ifndef GOULAG_OPTIONSVIEW_H
-#define GOULAG_OPTIONSVIEW_H
+#ifndef OGNENNYOSTROV_OPTIONSVIEW_H
+#define OGNENNYOSTROV_OPTIONSVIEW_H
 
 #include "core/Settings.h"
 
@@ -18,4 +18,4 @@ private:
     sf::Texture spriteSheet;
 };
 
-#endif //GOULAG_OPTIONSVIEW_H
+#endif //OGNENNYOSTROV_OPTIONSVIEW_H

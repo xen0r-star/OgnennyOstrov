@@ -1,5 +1,5 @@
-#ifndef GOULAG_MAPGENERATOR_H
-#define GOULAG_MAPGENERATOR_H
+#ifndef OGNENNYOSTROV_MAPGENERATOR_H
+#define OGNENNYOSTROV_MAPGENERATOR_H
 
 #include "models/map/Tile.h"
 #include <random>
@@ -35,4 +35,4 @@ private:
     static void buildCollision(Map& map);
 };
 
-#endif // GOULAG_MAPGENERATOR_H
+#endif // OGNENNYOSTROV_MAPGENERATOR_H

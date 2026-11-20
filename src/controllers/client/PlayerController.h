@@ -1,5 +1,5 @@
-#ifndef GOULAG_PLAYERCONTROLLER_H
-#define GOULAG_PLAYERCONTROLLER_H
+#ifndef PLAYERCONTROLLER_H
+#define PLAYERCONTROLLER_H
 #include "models/entities/Prisoner.h"
 
 
@@ -10,4 +10,4 @@ class PlayerController {
 };
 
 
-#endif //GOULAG_PLAYERCONTROLLER_H
+#endif //PLAYERCONTROLLER_H

@@ -1,5 +1,5 @@
-#ifndef GOULAG_GAME_H
-#define GOULAG_GAME_H
+#ifndef GAME_H
+#define GAME_H
 
 #include "Settings.h"
 
@@ -54,4 +54,4 @@ private:
     PlayerController playerController;
 };
 
-#endif // GOULAG_GAME_H
+#endif // GAME_H

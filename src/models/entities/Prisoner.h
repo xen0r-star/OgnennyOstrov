@@ -1,5 +1,5 @@
-#ifndef GOULAG_PRISONER_H
-#define GOULAG_PRISONER_H
+#ifndef OGNENNYOSTROV_PRISONER_H
+#define OGNENNYOSTROV_PRISONER_H
 
 #include <SFML/System/Vector2.hpp>
 #include <SFML/System/Time.hpp>
@@ -37,4 +37,4 @@ private:
     float speed = 400.f;
 };
 
-#endif // GOULAG_PRISONER_H
+#endif // OGNENNYOSTROV_PRISONER_H

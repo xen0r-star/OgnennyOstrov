@@ -1,5 +1,5 @@
-#ifndef GOULAG_SETTINGS_H
-#define GOULAG_SETTINGS_H
+#ifndef SETTINGS_H
+#define SETTINGS_H
 
 struct Settings {
     int brightness = 100; // from 20 to 100 %
@@ -10,4 +10,4 @@ struct Settings {
     void changeVolume(int delta);
 };
 
-#endif //GOULAG_SETTINGS_H
+#endif //SETTINGS_H

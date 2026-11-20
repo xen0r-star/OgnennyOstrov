@@ -1,5 +1,5 @@
-#ifndef GOULAG_MENUVIEW_H
-#define GOULAG_MENUVIEW_H
+#ifndef OGNENNYOSTROV_MENUVIEW_H
+#define OGNENNYOSTROV_MENUVIEW_H
 
 #include <SFML/Graphics.hpp>
 
@@ -21,4 +21,4 @@ private:
     int selection = 0;
 };
 
-#endif //GOULAG_MENUVIEW_H
+#endif //OGNENNYOSTROV_MENUVIEW_H

@@ -1,5 +1,5 @@
-#ifndef GOULAG_TILE_H
-#define GOULAG_TILE_H
+#ifndef OGNENNYOSTROV_TILE_H
+#define OGNENNYOSTROV_TILE_H
 
 #include <array>
 #include <vector>
@@ -65,4 +65,4 @@ struct Map {
     std::vector<std::vector<MapCell>> cells = std::vector<std::vector<MapCell>>();
 };
 
-#endif // GOULAG_TILE_H
+#endif // OGNENNYOSTROV_TILE_H
