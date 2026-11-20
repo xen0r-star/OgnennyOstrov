@@ -2,29 +2,14 @@
 <CodeBlocks_project_file>
   <FileVersion major="1" minor="6" />
   <Project>
-    <Option title="Goulag" />
+    <Option title="OgnennyOstrov" />
     <Option pch_mode="2" />
     <Option compiler="gcc" />
     <Build>
-      <Target title="Debug">
-        <Option output="bin/Debug/Goulag" prefix_auto="1" extension_auto="1" />
-        <Option working_dir="bin/Debug/" />
-        <Option object_output="obj/Debug/" />
-        <Option type="1" />
-        <Option compiler="gcc" />
-        <Compiler>
-          <Add option="-g" />
-        </Compiler>
-        <Linker>
-          <Add library="sfml-graphics-d" />
-          <Add library="sfml-window-d" />
-          <Add library="sfml-system-d" />
-        </Linker>
-      </Target>
-      <Target title="Release">
-        <Option output="bin/Release/Goulag" prefix_auto="1" extension_auto="1" />
-        <Option working_dir="bin/Release/" />
-        <Option object_output="obj/Release/" />
+      <Target title="Client">
+        <Option output="bin/Client/Release/OgnennyOstrov" prefix_auto="1" extension_auto="1" />
+        <Option working_dir="bin/Client/Release/" />
+        <Option object_output="obj/Client/Release/" />
         <Option type="1" />
         <Option compiler="gcc" />
         <Compiler>
@@ -34,6 +19,23 @@
           <Add option="-s" />
           <Add library="sfml-graphics" />
           <Add library="sfml-window" />
+          <Add library="sfml-network" />
+          <Add library="sfml-system" />
+          <Add library="sfml-audio" />
+        </Linker>
+      </Target>
+      <Target title="Server">
+        <Option output="bin/Server/Release/OgnennyOstrovServer" prefix_auto="1" extension_auto="1" />
+        <Option working_dir="bin/Server/Release/" />
+        <Option object_output="obj/Server/Release/" />
+        <Option type="1" />
+        <Option compiler="gcc" />
+        <Compiler>
+          <Add option="-O2" />
+        </Compiler>
+        <Linker>
+          <Add option="-s" />
+          <Add library="sfml-network" />
           <Add library="sfml-system" />
         </Linker>
       </Target>
@@ -49,7 +51,7 @@
     </Linker>
     <ExtraCommands>
       <Add after="cmd /c copy /Y deps\SFML\bin\*.dll $(TARGET_OUTPUT_DIR)" />
-      <Add after="cmd /c xcopy /E /I /Y assets $(TARGET_OUTPUT_DIR)assets" />
+      <Add after="cmd /c if exist assets xcopy /E /I /Y assets $(TARGET_OUTPUT_DIR)assets" />
     </ExtraCommands>
 @@UNITS@@
   </Project>

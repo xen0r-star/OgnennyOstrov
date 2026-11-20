@@ -1,12 +1,23 @@
 #ifndef GOULAG_GAME_H
 #define GOULAG_GAME_H
 
-#include "views/MapView.h"
+#include "Settings.h"
+
 #include <SFML/Graphics.hpp>
 
-#include "controllers/client/PlayerController.h"
+#include "views/MapView.h"
+#include "views/menu/MenuView.h"
+#include "views/menu/OptionsView.h"
 #include "views/PrisonerView.h"
+
+#include "controllers/client/PlayerController.h"
 #include "models/entities/Prisoner.h"
+
+enum class GameState {
+    Menu,
+    Options,
+    Playing,
+};
 
 class Game {
 public:
@@ -19,9 +30,23 @@ private:
     void update(sf::Time deltaTime);
     void render();
 
+    void startGame();
+    void resetScreenView();
+
+    void updateCamera();
+
     sf::RenderWindow window;
     sf::View camera;
-    TileMap map;
+    GameState state = GameState::Menu;
+
+    // Menu data
+    sf::Font font;
+    Settings settings;
+    MenuView menu;
+    OptionsView options;
+
+    // Game data
+    Map map;
     MapView mapView;
 
     Prisoner prisoner;

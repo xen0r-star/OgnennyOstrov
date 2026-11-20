@@ -3,7 +3,8 @@
 
 #include <SFML/System/Vector2.hpp>
 #include <SFML/System/Time.hpp>
-#include "models/map/MapGenerator.h"   // pour TileMap
+#include "models/map/Tile.h"
+#include <vector>
 
 class Prisoner {
     // TODO : name, health, STARTING_HEALTH, facing (direction regardee),
@@ -14,16 +15,22 @@ public:
     explicit Prisoner(sf::Vector2f position);
 
     void setDirection(sf::Vector2f newDirection);
-    void update(sf::Time dt, const TileMap& map);
+    void update(sf::Time dt, const Map& map);
+    bool moveToNearestFreeSpot(sf::Vector2f target, const Map& map);
 
     [[nodiscard]] const sf::Vector2f& getPosition() const;
 
 private:
     static constexpr float HITBOX_HALF = 30.f;   // hitbox = carre de 60 px autour du centre (taille libre)
 
-    bool canStandAt(sf::Vector2f pos, const TileMap& map) const;
-    static bool isWalkable(int subX, int subY, const TileMap& map);
+    bool canStandAt(sf::Vector2f pos, const Map& map) const;
+    static bool isWalkable(int subX, int subY, const Map& map);
     static int toSubcell(float pixel);
+
+    static sf::Vector2f cellCenter(int cellX, int cellY);
+    bool canStandInCell(int cellX, int cellY, const Map& map) const;
+    bool canWalkToNeighborCell(int cellX, int cellY, int dx, int dy, const Map& map) const;
+    int floodFillCells(int startX, int startY, const Map& map, std::vector<char>& visited) const;
 
     sf::Vector2f position;
     sf::Vector2f direction{0.f, 0.f};

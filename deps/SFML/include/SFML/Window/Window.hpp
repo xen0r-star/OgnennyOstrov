@@ -28,6 +28,7 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
+#include <optional>
 #include <SFML/Window/ContextSettings.hpp>
 #include <SFML/Window/Cursor.hpp>
 #include <SFML/Window/Export.hpp>
@@ -495,6 +496,8 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     WindowHandle getSystemHandle() const;
+
+    std::optional<bool> pollEvent();
 
 protected:
 

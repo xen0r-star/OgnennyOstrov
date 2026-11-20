@@ -9,13 +9,11 @@ public:
     MapView();
     ~MapView();
 
-    void drawMap(sf::RenderWindow& window, const TileMap& map);
-
+    void drawMap(sf::RenderWindow& window, const Map& map) const;
 private:
     sf::Texture texture;
 
-    static float angleToDegrees(Angle angle);
-    void drawTile(sf::RenderWindow& window, const Tile& tile, int i, int j) const;
+    void drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, int x, int y) const;
 };
 
 #endif // GOULAG_MAPVIEW_H
