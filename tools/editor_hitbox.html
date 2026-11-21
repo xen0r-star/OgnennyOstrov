@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Éditeur de Hitbox (polygones)</title>
+
+    <style>
+        /* ---------- Thème ---------- */
+        :root {
+            --bg: #f4f5f7;
+            --pn: #fff;
+            --tx: #1c1e22;
+            --mu: #6b7280;
+            --bd: #d6d9de;
+            --ac: #2563eb;
+            --cv: #e9ebef;
+            box-sizing: border-box;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #15171a;
+                --pn: #1f2226;
+                --tx: #e8eaed;
+                --mu: #9aa0a8;
+                --bd: #33373d;
+                --ac: #5b9bff;
+                --cv: #101215;
+                color-scheme: dark;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #15171a;
+            --pn: #1f2226;
+            --tx: #e8eaed;
+            --mu: #9aa0a8;
+            --bd: #33373d;
+            --ac: #5b9bff;
+            --cv: #101215;
+            color-scheme: dark;
+        }
+
+        /* ---------- Mise en page ---------- */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--tx);
+            font: 14px system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
+
+        .app {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 14px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .cv {
+            flex: 1 1 420px;
+            min-width: 0;
+        }
+
+        .side {
+            flex: 1 1 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        canvas {
+            width: 100%;
+            max-width: 560px;
+            aspect-ratio: 1;
+            background: var(--cv);
+            border: 1px solid var(--bd);
+            border-radius: 8px;
+            touch-action: none;
+            display: block;
+        }
+
+        /* ---------- Composants ---------- */
+        .box {
+            background: var(--pn);
+            border: 1px solid var(--bd);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        h2 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: var(--mu);
+            margin: 0 0 8px;
+        }
+
+        button,
+        select,
+        input,
+        textarea {
+            font: inherit;
+            color: var(--tx);
+            background: var(--bg);
+            border: 1px solid var(--bd);
+            border-radius: 6px;
+            padding: 6px 9px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        button:hover:not(:disabled) {
+            border-color: var(--ac);
+        }
+
+        button:disabled {
+            opacity: .45;
+            cursor: default;
+        }
+
+        button.p {
+            background: var(--ac);
+            color: #fff;
+            border-color: var(--ac);
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .item {
+            padding: 6px 8px;
+            border: 1px solid var(--bd);
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .item.sel {
+            border-color: var(--ac);
+            background: color-mix(in srgb, var(--ac) 12%, transparent);
+        }
+
+        /* Tuiles déjà configurées */
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            max-height: 96px;
+            overflow: auto;
+            margin-top: 6px;
+        }
+
+        .chip {
+            padding: 2px 7px;
+            font-size: 12px;
+        }
+
+        .chip.sel {
+            border-color: var(--ac);
+            background: color-mix(in srgb, var(--ac) 14%, transparent);
+        }
+
+        /* Tableau des points */
+        #pts {
+            max-height: 260px;
+            overflow: auto;
+        }
+
+        .pt {
+            display: grid;
+            grid-template-columns: 26px 1fr 1fr 30px;
+            gap: 4px;
+            align-items: center;
+            padding: 2px;
+            margin-bottom: 2px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+        }
+
+        .pt.sel {
+            border-color: var(--ac);
+            background: color-mix(in srgb, var(--ac) 12%, transparent);
+        }
+
+        .pt span {
+            color: var(--mu);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .pt input {
+            width: 100%;
+            padding: 3px 6px;
+        }
+
+        .pt button {
+            padding: 2px 6px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 190px;
+            font: 12px ui-monospace, Menlo, monospace;
+            resize: vertical;
+        }
+
+        .hint {
+            color: var(--mu);
+            font-size: 12px;
+            margin: 6px 0 0;
+        }
+
+        .warn {
+            color: #d97706;
+        }
+    </style>
+</head>
+
+<body>
+<div class="app">
+
+    <!-- ===== Zone d'édition ===== -->
+    <div class="cv">
+        <canvas id="c" width="560" height="560"></canvas>
+        <p class="hint" id="ch"></p>
+    </div>
+
+    <!-- ===== Panneau latéral ===== -->
+    <div class="side">
+
+        <div class="box">
+            <h2>Tuile</h2>
+            <div class="row">
+                <label>Taille d'une tuile
+                    <select id="ts">
+                        <option>16</option>
+                        <option>32</option>
+                        <option>64</option>
+                        <option selected>128</option>
+                        <option>256</option>
+                    </select> px
+                </label>
+                <label>Magnétisme
+                    <select id="sn">
+                        <option value="0">aucun</option>
+                        <option value="1">1 px</option>
+                        <option value="2">2 px</option>
+                        <option value="4" selected>4 px</option>
+                        <option value="8">8 px</option>
+                        <option value="16">16 px</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="row" style="margin-top:8px">
+                <button id="pv" title="Tuile précédente">◀</button>
+                <button id="nx" title="Tuile suivante">▶</button>
+                <label>col <input type="number" id="cc" min="0" value="0" style="width:60px"></label>
+                <label>ligne <input type="number" id="rr" min="0" value="0" style="width:60px"></label>
+                <label>colonnes de l'atlas <input type="number" id="nc" min="1" value="1" style="width:60px"></label>
+            </div>
+            <p class="hint" id="ti"></p>
+            <div class="chips" id="tl"></div>
+        </div>
+
+        <div class="box">
+            <h2>Atlas (grande texture)</h2>
+            <input type="file" id="img" accept="image/*" style="max-width:100%">
+
+            <div id="atl" style="display:none; margin-top:8px">
+                <div class="row" style="margin-bottom:6px">
+                    <label>décalage X <input type="number" id="ox" value="0" min="0" style="width:64px"></label>
+                    <label>Y <input type="number" id="oy" value="0" min="0" style="width:64px"></label>
+                    <label>espace entre cases <input type="number" id="sp" value="0" min="0" style="width:64px"></label>
+                </div>
+
+                <canvas id="ac" style="aspect-ratio:auto; max-width:100%; cursor:pointer"></canvas>
+                <p class="hint" id="ai"></p>
+            </div>
+
+            <p class="hint">Clique sur une case de l'atlas pour éditer sa hitbox. Vert = case déjà configurée.</p>
+        </div>
+
+        <div class="box">
+            <h2>Ajouter un polygone</h2>
+            <div class="row">
+                <button id="tSel">↖ Sélection (V)</button>
+                <button id="tDraw">✏ Dessiner (P)</button>
+            </div>
+            <div class="row" style="margin-top:8px">
+                <button id="aR">▭ Rectangle</button>
+                <button id="aN">⬡ Régulier</button>
+                <label><input type="number" id="sides" min="3" max="64" value="24" style="width:58px"> côtés</label>
+            </div>
+            <p class="hint">« Régulier » avec beaucoup de côtés (ex. 24) donne un cercle.</p>
+        </div>
+
+        <div class="box">
+            <h2>Polygones de cette tuile</h2>
+            <div id="list"></div>
+        </div>
+
+        <div class="box">
+            <h2>Polygone sélectionné</h2>
+            <div id="pts"></div>
+            <p class="hint" id="info"></p>
+
+            <div id="selTools" style="display:none">
+                <div class="row" style="margin-top:8px">
+                    <button id="dp">Supprimer le point</button>
+                    <button id="dup">Dupliquer</button>
+                    <button id="del">Supprimer le polygone</button>
+                </div>
+                <div class="row" style="margin-top:8px">
+                    <button id="r90l" title="Rotation de 90° autour du centre de la tuile">↺ 90°</button>
+                    <button id="r90r" title="Rotation de 90° autour du centre de la tuile">↻ 90°</button>
+                    <button id="mh" title="Miroir horizontal dans la tuile">⇋ Miroir</button>
+                    <button id="mv" title="Miroir vertical dans la tuile">⇅ Miroir</button>
+                </div>
+                <div class="row" style="margin-top:8px">
+                    <label>Rotation libre
+                        <input type="number" id="ang" value="15" step="any" style="width:64px"> °
+                    </label>
+                    <button id="rotL">↺</button>
+                    <button id="rotR">↻</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <h2>Export / Import (toutes les cases)</h2>
+            <textarea id="out" spellcheck="false" readonly></textarea>
+            <div class="row" style="margin-top:6px">
+                <button class="p" id="cp">Copier</button>
+                <button id="dl">Télécharger</button>
+                <button id="imp">Importer…</button>
+                <input type="file" id="file" accept=".json,application/json" hidden>
+            </div>
+            <p class="hint" id="msg"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* =====================================================================
+     *  Éditeur de hitbox — polygones uniquement
+     *  Format (import ET export) :
+     *    { tileSize, tiles: [{ id, col, row, hitboxes: [{ points: [[x, y], ...] }] }] }
+     *  Les points sont stockés normalisés (0 → 1) ; l'édition se fait en pixels de tuile.
+     * ===================================================================== */
+
+    const $ = id => document.getElementById(id);
+    const cv = $('c');
+    const g = cv.getContext('2d');
+
+    /* ---------- Constantes ---------- */
+    const MARGIN = 28;        // marge autour de la tuile dans le canvas
+    const VERTEX_HIT = 10;    // rayon de sélection d'un point (px écran)
+    const MID_HIT = 8;        // rayon de sélection d'un milieu de côté (px écran)
+    const CLOSE_HIT = 12;     // distance pour fermer un polygone en cours de dessin (px écran)
+
+    /* ---------- État ---------- */
+    let tileSize = 128;       // taille d'une case en pixels
+    let shapes = [];          // polygones de la case courante : { pts: [[x, y], ...] } (normalisé)
+    let selected = -1;        // index du polygone sélectionné
+    let selV = -1;            // index du point sélectionné dans ce polygone
+    let tool = 'select';      // 'select' | 'draw'
+    let draft = [];           // polygone en cours de dessin (pixels de tuile)
+    let hover = null;         // position du curseur en mode dessin (pixels de tuile)
+    let drag = null;          // opération de glisser en cours
+    let atlas = null;         // image de l'atlas
+    let cells = {};           // "col,row" -> polygones de cette case
+    let cur = { c: 0, r: 0 }; // case courante
+    let fileName = 'tiles.json';
+
+    /* ---------- Utilitaires ---------- */
+    const round2 = v => Math.round(v * 100) / 100;
+    const mod = (v, m) => ((v % m) + m) % m;
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const toRad = deg => deg * Math.PI / 180;
+
+    const scale = () => (cv.width - 2 * MARGIN) / tileSize;   // pixels canvas par pixel tuile
+    const toC = v => MARGIN + v * scale();                     // pixel tuile -> pixel canvas
+
+    function snap(v) {
+        const step = +$('sn').value;
+        return step ? Math.round(v / step) * step : round2(v);
+    }
+
+    // Point en pixels de tuile, aimanté et gardé dans la tuile
+    const snapPoint = p => [clamp(snap(p.x), 0, tileSize), clamp(snap(p.y), 0, tileSize)];
+
+    /* ---------- Géométrie des polygones (points normalisés) ---------- */
+
+    function pointInPolygon(pts, x, y) {
+        let inside = false;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+            const [xi, yi] = pts[i];
+            const [xj, yj] = pts[j];
+            if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+    }
+
+    // Convexe = tous les virages vont dans le même sens (les points alignés sont ignorés)
+    function isConvex(pts) {
+        let sign = 0;
+        const n = pts.length;
+        for (let i = 0; i < n; i++) {
+            const a = pts[i], b = pts[(i + 1) % n], c = pts[(i + 2) % n];
+            const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+            if (Math.abs(cross) < 1e-9) continue;
+            const s = Math.sign(cross);
+            if (sign && s !== sign) return false;
+            sign = s;
+        }
+        return true;
+    }
+
+    // Décale puis borne les points pour que le polygone reste dans la tuile
+    function fitInTile(pts) {
+        const xs = pts.map(p => p[0]);
+        const ys = pts.map(p => p[1]);
+        let dx = 0, dy = 0;
+        if (Math.min(...xs) < 0) dx = -Math.min(...xs); else if (Math.max(...xs) > 1) dx = 1 - Math.max(...xs);
+        if (Math.min(...ys) < 0) dy = -Math.min(...ys); else if (Math.max(...ys) > 1) dy = 1 - Math.max(...ys);
+        pts.forEach(p => {
+            p[0] = clamp(p[0] + dx, 0, 1);
+            p[1] = clamp(p[1] + dy, 0, 1);
+        });
+    }
+
+    /* ---------- Atlas : décalage, espacement, grille ---------- */
+    const offsetX = () => +$('ox').value || 0;
+    const offsetY = () => +$('oy').value || 0;
+    const spacing = () => +$('sp').value || 0;
+
+    const cellOrigin = (c, r) => ({
+        x: offsetX() + c * (tileSize + spacing()),
+        y: offsetY() + r * (tileSize + spacing())
+    });
+
+    // Sans atlas, le nombre de colonnes (utile pour calculer les id) se saisit à la main
+    const columns = () => atlas
+        ? Math.max(1, Math.floor((atlas.width - offsetX() + spacing()) / (tileSize + spacing())))
+        : Math.max(1, Math.floor(+$('nc').value) || 1);
+
+    const rowCount = () => atlas
+        ? Math.max(1, Math.floor((atlas.height - offsetY() + spacing()) / (tileSize + spacing())))
+        : Infinity;
+
+    const idOf = key => {
+        const [c, r] = key.split(',').map(Number);
+        return r * columns() + c;
+    };
+
+    /* ---------- Navigation entre les cases ---------- */
+    function saveCurrentCell() {
+        const key = cur.c + ',' + cur.r;
+        if (shapes.length) cells[key] = shapes;
+        else delete cells[key];
+    }
+
+    function goToCell(c, r) {
+        saveCurrentCell();
+        draft = [];
+        hover = null;
+        cur = {
+            c: Math.max(0, atlas ? Math.min(columns() - 1, c) : c),
+            r: Math.max(0, Math.min(rowCount() - 1, r))
+        };
+        shapes = cells[cur.c + ',' + cur.r] || [];
+        selected = -1;
+        selV = -1;
+        refreshUI();
+    }
+
+    // Avec atlas : toutes les cases. Sans atlas : seulement les cases configurées.
+    function stepCell(delta) {
+        if (atlas) {
+            const total = columns() * rowCount();
+            const i = mod(cur.r * columns() + cur.c + delta, total);
+            goToCell(i % columns(), Math.floor(i / columns()));
+            return;
+        }
+        saveCurrentCell();
+        const curKey = cur.c + ',' + cur.r;
+        const keys = Object.keys(cells);
+        if (!keys.includes(curKey)) keys.push(curKey);
+        keys.sort((a, b) => idOf(a) - idOf(b));
+        const next = keys[mod(keys.indexOf(curKey) + delta, keys.length)];
+        const [c, r] = next.split(',').map(Number);
+        goToCell(c, r);
+    }
+
+    $('nx').onclick = () => stepCell(1);
+    $('pv').onclick = () => stepCell(-1);
+    $('cc').onchange = () => goToCell(+$('cc').value, cur.r);
+    $('rr').onchange = () => goToCell(cur.c, +$('rr').value);
+    $('nc').oninput = () => { if (!atlas) refreshUI(); };
+
+    /* ---------- Outils : sélection / dessin ---------- */
+    function setTool(t) {
+        tool = t;
+        draft = [];
+        hover = null;
+        drag = null;
+        if (t === 'draw') { selected = -1; selV = -1; }
+        refreshUI();
+    }
+
+    $('tSel').onclick = () => setTool('select');
+    $('tDraw').onclick = () => setTool('draw');
+
+    function addDraftPoint(p) {
+        const q = snapPoint(p);
+        const last = draft[draft.length - 1];
+
+        // Clic sur le premier point : on ferme
+        if (draft.length >= 3) {
+            const first = draft[0];
+            if (Math.hypot(p.x - first[0], p.y - first[1]) * scale() < CLOSE_HIT) { closeDraft(); return; }
+        }
+        // Deuxième clic au même endroit (double-clic) : on ferme aussi
+        if (last && last[0] === q[0] && last[1] === q[1]) {
+            if (draft.length >= 3) closeDraft();
+            return;
+        }
+        draft.push(q);
+        updateToolUI();
+        draw();
+    }
+
+    function closeDraft() {
+        if (draft.length < 3) return;
+        shapes.push({ pts: draft.map(([x, y]) => [x / tileSize, y / tileSize]) });
+        selected = shapes.length - 1;
+        selV = -1;
+        tool = 'select';
+        draft = [];
+        hover = null;
+        refreshUI();
+    }
+
+    /* ---------- Ajout / suppression / transformation ---------- */
+    function addPolygon(pts) {
+        shapes.push({ pts });
+        selected = shapes.length - 1;
+        selV = -1;
+        tool = 'select';
+        draft = [];
+        refreshUI();
+    }
+
+    $('aR').onclick = () => addPolygon([[.25, .25], [.75, .25], [.75, .75], [.25, .75]]);
+
+    $('aN').onclick = () => {
+        const n = clamp(Math.round(+$('sides').value) || 3, 3, 64);
+        // Côtés alignés sur les axes (n pair) ou pointe vers le haut (n impair)
+        const start = n % 2 ? -Math.PI / 2 : Math.PI / n;
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+            const a = start + 2 * Math.PI * i / n;
+            pts.push([.5 + .3 * Math.cos(a), .5 + .3 * Math.sin(a)]);
+        }
+        addPolygon(pts);
+    };
+
+    function deletePolygon() {
+        if (selected < 0) return;
+        shapes.splice(selected, 1);
+        selected = Math.min(selected, shapes.length - 1);
+        selV = -1;
+        refreshUI();
+    }
+
+    function deletePoint(i) {
+        const s = shapes[selected];
+        if (!s || s.pts.length <= 3) return;
+        s.pts.splice(i, 1);
+        selV = -1;
+        refreshUI();
+    }
+
+    $('del').onclick = deletePolygon;
+    $('dp').onclick = () => { if (selV >= 0) deletePoint(selV); };
+
+    $('dup').onclick = () => {
+        const s = shapes[selected];
+        if (!s) return;
+        const copy = { pts: s.pts.map(([x, y]) => [x + 1 / 16, y + 1 / 16]) };
+        fitInTile(copy.pts);
+        shapes.push(copy);
+        selected = shapes.length - 1;
+        selV = -1;
+        refreshUI();
+    };
+
+    function transformSelected(fn) {
+        const s = shapes[selected];
+        if (!s) return;
+        s.pts = s.pts.map(fn);
+        fitInTile(s.pts);
+        refreshUI();
+    }
+
+    $('r90r').onclick = () => transformSelected(([x, y]) => [1 - y, x]);
+    $('r90l').onclick = () => transformSelected(([x, y]) => [y, 1 - x]);
+    $('mh').onclick = () => transformSelected(([x, y]) => [1 - x, y]);
+    $('mv').onclick = () => transformSelected(([x, y]) => [x, 1 - y]);
+
+    // Rotation libre autour du centre du polygone
+    function rotateSelected(sign) {
+        const s = shapes[selected];
+        if (!s) return;
+        const angle = toRad(sign * (+$('ang').value || 0));
+        const xs = s.pts.map(p => p[0]);
+        const ys = s.pts.map(p => p[1]);
+        const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+        const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+        const cos = Math.cos(angle), sin = Math.sin(angle);
+        transformSelected(([x, y]) => [
+            cx + (x - cx) * cos - (y - cy) * sin,
+            cy + (x - cx) * sin + (y - cy) * cos
+        ]);
+    }
+
+    $('rotR').onclick = () => rotateSelected(1);
+    $('rotL').onclick = () => rotateSelected(-1);
+
+    /* ---------- Réglages ---------- */
+    // Les points sont normalisés : changer la taille de tuile ne déforme rien
+    $('ts').onchange = e => {
+        saveCurrentCell();
+        tileSize = +e.target.value;
+        draft = [];
+        hover = null;
+        cur = { c: 0, r: 0 };
+        shapes = cells['0,0'] || [];
+        selected = -1;
+        selV = -1;
+        refreshUI();
+    };
+
+    $('sn').onchange = draw;
+
+    ['ox', 'oy', 'sp'].forEach(id => {
+        $(id).oninput = () => { if (atlas) goToCell(cur.c, cur.r); };
+    });
+
+    $('img').onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const image = new Image();
+            image.onload = () => { atlas = image; goToCell(cur.c, cur.r); };
+            image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    /* ---------- Dessin ---------- */
+    function drawGrid(tileWidth) {
+        let step = +$('sn').value || tileSize / 8;
+        while (step * scale() < 6) step *= 2;
+
+        g.lineWidth = 1;
+        for (let i = 0; i <= tileSize + 1e-6; i += step) {
+            const isMajor = Math.abs(i / step % 4) < 1e-6;
+            g.strokeStyle = isMajor ? 'rgba(0,0,0,.28)' : 'rgba(0,0,0,.1)';
+            g.beginPath();
+            g.moveTo(toC(i), MARGIN);
+            g.lineTo(toC(i), MARGIN + tileWidth);
+            g.moveTo(MARGIN, toC(i));
+            g.lineTo(MARGIN + tileWidth, toC(i));
+            g.stroke();
+        }
+    }
+
+    function dot(x, y, radius, fill, stroke) {
+        g.beginPath();
+        g.arc(x, y, radius, 0, Math.PI * 2);
+        g.fillStyle = fill;
+        g.fill();
+        g.strokeStyle = stroke;
+        g.lineWidth = 2;
+        g.stroke();
+    }
+
+    function draw() {
+        g.clearRect(0, 0, cv.width, cv.height);
+        const tileWidth = tileSize * scale();
+
+        // Fond + case de l'atlas
+        g.fillStyle = '#fff';
+        g.fillRect(MARGIN, MARGIN, tileWidth, tileWidth);
+        if (atlas) {
+            g.imageSmoothingEnabled = false;
+            const o = cellOrigin(cur.c, cur.r);
+            g.drawImage(atlas, o.x, o.y, tileSize, tileSize, MARGIN, MARGIN, tileWidth, tileWidth);
+        }
+
+        drawGrid(tileWidth);
+
+        // Cadre de la tuile
+        g.strokeStyle = '#888';
+        g.lineWidth = 2;
+        g.strokeRect(MARGIN, MARGIN, tileWidth, tileWidth);
+
+        // Polygones
+        shapes.forEach((s, i) => {
+            g.beginPath();
+            s.pts.forEach(([x, y], k) => {
+                const X = toC(x * tileSize), Y = toC(y * tileSize);
+                if (k) g.lineTo(X, Y); else g.moveTo(X, Y);
+            });
+            g.closePath();
+            g.fillStyle = i === selected ? 'rgba(239,68,68,.45)' : 'rgba(37,99,235,.35)';
+            g.fill();
+            g.strokeStyle = i === selected ? '#ef4444' : '#2563eb';
+            g.lineWidth = 2;
+            g.stroke();
+        });
+
+        // Poignées du polygone sélectionné : points + milieux de côtés
+        if (selected >= 0 && shapes[selected]) {
+            const pts = shapes[selected].pts;
+            const n = pts.length;
+            for (let i = 0; i < n; i++) {
+                const a = pts[i], b = pts[(i + 1) % n];
+                dot(toC((a[0] + b[0]) / 2 * tileSize), toC((a[1] + b[1]) / 2 * tileSize), 4,
+                    'rgba(255,255,255,.55)', 'rgba(239,68,68,.7)');
+            }
+            pts.forEach(([x, y], i) => {
+                dot(toC(x * tileSize), toC(y * tileSize), 6, i === selV ? '#ef4444' : '#fff', '#ef4444');
+            });
+        }
+
+        // Polygone en cours de dessin
+        if (tool === 'draw') {
+            if (draft.length) {
+                g.beginPath();
+                draft.forEach(([x, y], i) => (i ? g.lineTo(toC(x), toC(y)) : g.moveTo(toC(x), toC(y))));
+                if (hover) g.lineTo(toC(hover[0]), toC(hover[1]));
+                g.setLineDash([6, 4]);
+                g.strokeStyle = '#16a34a';
+                g.lineWidth = 2;
+                g.stroke();
+                g.setLineDash([]);
+
+                draft.forEach(([x, y], i) => {
+                    const closable = i === 0 && draft.length >= 3 && hover
+                        && Math.hypot(hover[0] - x, hover[1] - y) * scale() < CLOSE_HIT;
+                    dot(toC(x), toC(y), closable ? 9 : 5, closable ? '#16a34a' : '#fff', '#16a34a');
+                });
+            }
+            if (hover) dot(toC(hover[0]), toC(hover[1]), 3, '#16a34a', '#16a34a');
+        }
+    }
+
+    /* ---------- Souris / tactile ---------- */
+    function pointerPos(e) {
+        const rect = cv.getBoundingClientRect();
+        const k = cv.width / rect.width;
+        return {
+            x: ((e.clientX - rect.left) * k - MARGIN) / scale(),
+            y: ((e.clientY - rect.top) * k - MARGIN) / scale()
+        };
+    }
+
+    function vertexAt(s, p) {
+        for (let i = 0; i < s.pts.length; i++) {
+            if (Math.hypot(s.pts[i][0] * tileSize - p.x, s.pts[i][1] * tileSize - p.y) * scale() < VERTEX_HIT) return i;
+        }
+        return -1;
+    }
+
+    function midpointAt(s, p) {
+        const n = s.pts.length;
+        for (let i = 0; i < n; i++) {
+            const a = s.pts[i], b = s.pts[(i + 1) % n];
+            const mx = (a[0] + b[0]) / 2 * tileSize;
+            const my = (a[1] + b[1]) / 2 * tileSize;
+            if (Math.hypot(mx - p.x, my - p.y) * scale() < MID_HIT) return i;
+        }
+        return -1;
+    }
+
+    cv.onpointerdown = e => {
+        if (e.button !== 0) return;
+        const p = pointerPos(e);
+
+        if (tool === 'draw') {
+            addDraftPoint(p);
+            return;
+        }
+
+        cv.setPointerCapture(e.pointerId);
+
+        // 1) point ou milieu de côté du polygone sélectionné ?
+        if (selected >= 0) {
+            const s = shapes[selected];
+            const v = vertexAt(s, p);
+            if (v >= 0) {
+                selV = v;
+                drag = { k: 'v', i: v };
+                updateFields();
+                draw();
+                return;
+            }
+            const m = midpointAt(s, p);
+            if (m >= 0) {
+                const a = s.pts[m], b = s.pts[(m + 1) % s.pts.length];
+                s.pts.splice(m + 1, 0, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+                selV = m + 1;
+                drag = { k: 'v', i: m + 1 };
+                refreshUI();
+                return;
+            }
+        }
+
+        // 2) sinon, polygone sous le curseur (le plus haut d'abord)
+        for (let i = shapes.length - 1; i >= 0; i--) {
+            if (pointInPolygon(shapes[i].pts, p.x / tileSize, p.y / tileSize)) {
+                selected = i;
+                selV = -1;
+                drag = { k: 'mv', sx: p.x, sy: p.y, orig: shapes[i].pts.map(q => [...q]) };
+                refreshUI();
+                return;
+            }
+        }
+
+        // 3) rien : désélection
+        selected = -1;
+        selV = -1;
+        refreshUI();
+    };
+
+    cv.onpointermove = e => {
+        const p = pointerPos(e);
+
+        if (tool === 'draw') {
+            hover = snapPoint(p);
+            draw();
+            return;
+        }
+        if (!drag) return;
+
+        const s = shapes[selected];
+        if (!s) return;
+
+        if (drag.k === 'v') {
+            const [x, y] = snapPoint(p);
+            s.pts[drag.i] = [x / tileSize, y / tileSize];
+        } else {
+            const xs = drag.orig.map(q => q[0]);
+            const ys = drag.orig.map(q => q[1]);
+            const dx = clamp(snap(p.x - drag.sx) / tileSize, -Math.min(...xs), 1 - Math.max(...xs));
+            const dy = clamp(snap(p.y - drag.sy) / tileSize, -Math.min(...ys), 1 - Math.max(...ys));
+            s.pts = drag.orig.map(([x, y]) => [x + dx, y + dy]);
+        }
+
+        updateFields();
+        updateExport();
+        draw();
+    };
+
+    cv.onpointerup = () => { drag = null; };
+    cv.onpointercancel = () => { drag = null; };
+    cv.onpointerleave = () => { if (hover) { hover = null; draw(); } };
+
+    // Clic droit : retire le point visé (sélection) ou le dernier point posé (dessin)
+    cv.oncontextmenu = e => {
+        e.preventDefault();
+        if (tool === 'draw') {
+            if (draft.length) { draft.pop(); updateToolUI(); draw(); }
+            return;
+        }
+        if (selected >= 0) {
+            const v = vertexAt(shapes[selected], pointerPos(e));
+            if (v >= 0) deletePoint(v);
+        }
+    };
+
+    /* ---------- Interface ---------- */
+    function refreshUI() {
+        updateToolUI();
+        updateList();
+        updateFields();
+        updateExport();
+        updateTileUI();
+        draw();
+        updateAtlasUI();
+    }
+
+    function updateToolUI() {
+        $('tSel').className = tool === 'select' ? 'p' : '';
+        $('tDraw').className = tool === 'draw' ? 'p' : '';
+        cv.style.cursor = tool === 'draw' ? 'crosshair' : 'default';
+
+        $('ch').textContent = tool === 'draw'
+            ? `Clique pour poser les points (${draft.length} posé${draft.length > 1 ? 's' : ''}, 3 minimum) · `
+            + 'ferme en cliquant sur le premier point, avec Entrée ou en double-cliquant · '
+            + 'clic droit ou Retour arrière = annuler le dernier point · Échap = tout annuler.'
+            : 'Glisse un point pour le déplacer · glisse le petit rond au milieu d\'un côté pour ajouter un point · '
+            + 'clic droit sur un point ou Suppr = le retirer · glisse l\'intérieur pour déplacer le polygone · '
+            + 'coordonnées en pixels de la tuile.';
+    }
+
+    function updateTileUI() {
+        $('cc').value = cur.c;
+        $('rr').value = cur.r;
+        $('cc').max = columns() - 1;
+        $('rr').max = rowCount() - 1;
+        $('nc').disabled = !!atlas;
+        if (atlas) $('nc').value = columns();
+        $('ti').textContent = `Tuile (${cur.c}, ${cur.r}) · id = ${cur.r * columns() + cur.c}`;
+
+        const chips = $('tl');
+        chips.innerHTML = '';
+        Object.keys(cells).sort((a, b) => idOf(a) - idOf(b)).forEach(key => {
+            const [c, r] = key.split(',').map(Number);
+            const button = document.createElement('button');
+            button.className = 'chip' + (c === cur.c && r === cur.r ? ' sel' : '');
+            button.textContent = idOf(key);
+            button.title = `col ${c}, ligne ${r}`;
+            button.onclick = () => goToCell(c, r);
+            chips.appendChild(button);
+        });
+    }
+
+    const ATLAS_VIEW_WIDTH = 420;
+
+    function updateAtlasUI() {
+        $('atl').style.display = atlas ? 'block' : 'none';
+        if (!atlas) return;
+
+        const ratio = ATLAS_VIEW_WIDTH / atlas.width;
+        const canvas = $('ac');
+        canvas.width = ATLAS_VIEW_WIDTH;
+        canvas.height = Math.round(atlas.height * ratio);
+
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(atlas, 0, 0, canvas.width, canvas.height);
+
+        const cellSize = tileSize * ratio;
+        for (let r = 0; r < rowCount(); r++) {
+            for (let c = 0; c < columns(); c++) {
+                const o = cellOrigin(c, r);
+                const configured = ((c + ',' + r) in cells) || (c === cur.c && r === cur.r && shapes.length);
+                if (configured) {
+                    ctx.fillStyle = 'rgba(34,197,94,.35)';
+                    ctx.fillRect(o.x * ratio, o.y * ratio, cellSize, cellSize);
+                }
+                ctx.strokeStyle = 'rgba(255,255,255,.6)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(o.x * ratio, o.y * ratio, cellSize, cellSize);
+            }
+        }
+
+        // Case courante
+        const o = cellOrigin(cur.c, cur.r);
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(o.x * ratio + 1, o.y * ratio + 1, cellSize - 2, cellSize - 2);
+
+        const badSize = (atlas.width - offsetX() + spacing()) % (tileSize + spacing())
+            || (atlas.height - offsetY() + spacing()) % (tileSize + spacing());
+        $('ai').textContent =
+            `Atlas ${atlas.width}×${atlas.height} px → ${columns()}×${rowCount()} cases de ${tileSize}px`
+            + (badSize ? " · ⚠ la taille de l'atlas n'est pas un multiple exact : vérifie la taille de tuile ou le décalage" : '');
+    }
+
+    $('ac').onclick = e => {
+        const rect = $('ac').getBoundingClientRect();
+        const factor = atlas.width / rect.width;
+        const ax = (e.clientX - rect.left) * factor - offsetX();
+        const ay = (e.clientY - rect.top) * factor - offsetY();
+        goToCell(Math.floor(ax / (tileSize + spacing())), Math.floor(ay / (tileSize + spacing())));
+    };
+
+    function updateList() {
+        const list = $('list');
+        list.innerHTML = shapes.length ? '' : '<span class="hint">Aucun polygone. Utilise « Dessiner » ou un raccourci.</span>';
+
+        shapes.forEach((s, i) => {
+            const item = document.createElement('div');
+            item.className = 'item' + (i === selected ? ' sel' : '');
+            const concave = isConvex(s.pts) ? '' : ' <span class="warn" title="Polygone concave">⚠ concave</span>';
+            item.innerHTML = `<span>Polygone #${i + 1}${concave}</span>`
+                + `<span style="color:var(--mu)">${s.pts.length} pts</span>`;
+            item.onclick = () => { selected = i; selV = -1; refreshUI(); };
+            list.appendChild(item);
+        });
+    }
+
+    // Tableau des points du polygone sélectionné
+    function updateFields() {
+        const box = $('pts');
+        const s = selected >= 0 ? shapes[selected] : null;
+        $('selTools').style.display = s ? 'block' : 'none';
+
+        if (!s) {
+            box.dataset.key = '';
+            box.innerHTML = '<span class="hint">Sélectionne un polygone.</span>';
+            $('info').textContent = '';
+            return;
+        }
+
+        const key = selected + '|' + s.pts.length + '|' + cur.c + ',' + cur.r;
+
+        // Structure changée : on recrée les lignes (sinon on met juste les valeurs à jour)
+        if (box.dataset.key !== key) {
+            box.dataset.key = key;
+            box.innerHTML = '';
+
+            s.pts.forEach((_, i) => {
+                const row = document.createElement('div');
+                row.className = 'pt';
+
+                const label = document.createElement('span');
+                label.textContent = i + 1;
+                row.appendChild(label);
+
+                [0, 1].forEach(axis => {
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = 'any';
+                    input.title = axis ? 'y (px)' : 'x (px)';
+                    input.oninput = () => {
+                        const value = parseFloat(input.value);
+                        const target = shapes[selected];
+                        if (isNaN(value) || !target) return;
+                        target.pts[i][axis] = clamp(value / tileSize, 0, 1);
+                        updateExport();
+                        updateList();
+                        draw();
+                    };
+                    row.appendChild(input);
+                });
+
+                const remove = document.createElement('button');
+                remove.textContent = '×';
+                remove.title = 'Retirer ce point';
+                remove.onclick = () => deletePoint(i);
+                row.appendChild(remove);
+
+                row.onfocusin = () => {
+                    if (selV !== i) { selV = i; updateFields(); draw(); }
+                };
+                box.appendChild(row);
+            });
+        }
+
+        [...box.children].forEach((row, i) => {
+            row.classList.toggle('sel', i === selV);
+            const inputs = row.querySelectorAll('input');
+            [0, 1].forEach(axis => {
+                if (document.activeElement !== inputs[axis]) inputs[axis].value = round2(s.pts[i][axis] * tileSize);
+            });
+            row.querySelector('button').disabled = s.pts.length <= 3;
+        });
+
+        $('dp').disabled = selV < 0 || s.pts.length <= 3;
+        const convex = isConvex(s.pts);
+        $('info').innerHTML = `${s.pts.length} points · x / y en pixels de la tuile`
+            + (convex ? '' : ' · <span class="warn">⚠ polygone concave</span>');
+    }
+
+    /* =====================================================================
+     *  Export
+     * ===================================================================== */
+
+    // "-0.0000" -> "0.0000"
+    const fmt = v => v.toFixed(4).replace(/^-0\.0000$/, '0.0000');
+
+    function buildJson() {
+        const cols = columns();
+        const keys = Object.keys(cells).sort((a, b) => idOf(a) - idOf(b));
+
+        if (!keys.length) return `{\n  "tileSize": ${tileSize},\n  "tiles": []\n}\n`;
+
+        const tileBlocks = keys.map(key => {
+            const [col, row] = key.split(',').map(Number);
+            const hitboxLines = cells[key].map(s => {
+                const list = s.pts.map(([x, y]) => `[${fmt(x)}, ${fmt(y)}]`).join(', ');
+                return `        { "points": [${list}] }`;
+            });
+
+            return '    {\n'
+                + `      "id": ${row * cols + col}, "col": ${col}, "row": ${row},\n`
+                + '      "hitboxes": [\n'
+                + hitboxLines.join(',\n') + '\n'
+                + '      ]\n'
+                + '    }';
+        });
+
+        return '{\n'
+            + `  "tileSize": ${tileSize},\n`
+            + '  "tiles": [\n'
+            + tileBlocks.join(',\n') + '\n'
+            + '  ]\n'
+            + '}\n';
+    }
+
+    function updateExport() {
+        saveCurrentCell();
+        $('out').value = buildJson();
+        if (atlas) updateAtlasUI();
+    }
+
+    /* ---------- Copier / Télécharger ---------- */
+    $('cp').onclick = async () => {
+        try {
+            await navigator.clipboard.writeText($('out').value);
+            $('msg').textContent = 'Copié !';
+        } catch (err) {
+            $('out').select();
+            document.execCommand('copy');
+            $('msg').textContent = 'Copié (ou Ctrl+C).';
+        }
+    };
+
+    $('dl').onclick = () => {
+        const blob = new Blob([$('out').value], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    };
+
+    /* =====================================================================
+     *  Import : le bouton ouvre l'explorateur de fichiers
+     * ===================================================================== */
+
+    function importJson(data, name) {
+        if (!data || !Array.isArray(data.tiles)) throw new Error('il manque la liste "tiles"');
+
+        // Taille de tuile
+        const size = +data.tileSize;
+        if (size > 0) {
+            tileSize = size;
+            if (![...$('ts').options].some(o => +o.value === size)) {
+                const option = document.createElement('option');
+                option.textContent = size;
+                $('ts').appendChild(option);
+            }
+            $('ts').value = size;
+        }
+
+        // Nombre de colonnes déduit des id (id = row * colonnes + col)
+        let guess = 0, maxCol = 0;
+        data.tiles.forEach(t => {
+            if (!Number.isInteger(t.col)) return;
+            maxCol = Math.max(maxCol, t.col);
+            if (!guess && t.row > 0 && Number.isInteger(t.id)) {
+                const c = (t.id - t.col) / t.row;
+                if (Number.isInteger(c) && c > t.col) guess = c;
+            }
+        });
+        if (!atlas) $('nc').value = guess || maxCol + 1;
+
+        // Polygones
+        const imported = {};
+        let skipped = 0, polygonCount = 0;
+        data.tiles.forEach(t => {
+            if (!Number.isInteger(t.col) || !Number.isInteger(t.row) || t.col < 0 || t.row < 0) { skipped++; return; }
+            const polygons = [];
+            (t.hitboxes || []).forEach(h => {
+                const valid = Array.isArray(h.points) && h.points.length >= 3
+                    && h.points.every(p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]));
+                if (valid) polygons.push({ pts: h.points.map(p => [+p[0], +p[1]]) });
+                else skipped++;
+            });
+            if (polygons.length) {
+                imported[t.col + ',' + t.row] = (imported[t.col + ',' + t.row] || []).concat(polygons);
+                polygonCount += polygons.length;
+            }
+        });
+
+        cells = imported;
+        fileName = name || 'tiles.json';
+        tool = 'select';
+        draft = [];
+        hover = null;
+
+        const first = Object.keys(cells).sort((a, b) => idOf(a) - idOf(b))[0] || '0,0';
+        const [c, r] = first.split(',').map(Number);
+        cur = { c, r };
+        shapes = cells[first] || [];
+        selected = -1;
+        selV = -1;
+        refreshUI();
+
+        $('msg').textContent = `Importé « ${fileName} » : ${Object.keys(cells).length} tuile(s), ${polygonCount} polygone(s)`
+            + (skipped ? ` · ${skipped} élément(s) ignoré(s) (invalides)` : '') + '.';
+    }
+
+    $('imp').onclick = () => $('file').click();
+
+    $('file').onchange = e => {
+        const file = e.target.files[0];
+        e.target.value = '';   // permet de réimporter le même fichier
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                importJson(JSON.parse(reader.result), file.name);
+            } catch (err) {
+                $('msg').textContent = err instanceof SyntaxError
+                    ? 'Import impossible : ce fichier n\'est pas un JSON valide.'
+                    : 'Import impossible : ' + err.message + '.';
+            }
+        };
+        reader.onerror = () => { $('msg').textContent = 'Impossible de lire le fichier.'; };
+        reader.readAsText(file);
+    };
+
+    /* ---------- Raccourcis clavier ---------- */
+    window.onkeydown = e => {
+        const tag = e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+        if (e.key === 'Enter' && tool === 'draw') {
+            e.preventDefault();
+            closeDraft();
+        } else if (e.key === 'Escape') {
+            if (draft.length) { draft = []; updateToolUI(); draw(); }
+            else if (tool === 'draw') setTool('select');
+            else { selected = -1; selV = -1; refreshUI(); }
+        } else if (e.key === 'Backspace' && tool === 'draw' && draft.length) {
+            e.preventDefault();
+            draft.pop();
+            updateToolUI();
+            draw();
+        } else if (e.key === 'Delete' && tool === 'select') {
+            if (selV >= 0) deletePoint(selV); else deletePolygon();
+        } else if (e.key === 'p' || e.key === 'P') {
+            setTool('draw');
+        } else if (e.key === 'v' || e.key === 'V') {
+            setTool('select');
+        }
+    };
+
+    refreshUI();
+</script>
+</body>
+
+</html>
