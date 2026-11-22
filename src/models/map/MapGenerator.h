@@ -1,5 +1,5 @@
-#ifndef GOULAG_MAPGENERATOR_H
-#define GOULAG_MAPGENERATOR_H
+#ifndef OGNENNYOSTROV_MAPGENERATOR_H
+#define OGNENNYOSTROV_MAPGENERATOR_H
 
 #include "models/map/Tile.h"
 #include <random>
@@ -31,6 +31,8 @@ private:
     static void addHouseDoors(Map& map, std::mt19937& rng, const Rect& playZone);
     static void addHouseDecorations(Map& map, std::mt19937& rng, const Rect& playZone);
     static void addDecorations(Map& map, std::mt19937& rng, const Rect& playZone);
+
+    static void buildCollision(Map& map);
 };
 
-#endif // GOULAG_MAPGENERATOR_H
+#endif // OGNENNYOSTROV_MAPGENERATOR_H

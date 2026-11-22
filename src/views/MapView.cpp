@@ -1,10 +1,7 @@
 #include "views/MapView.h"
 #include <SFML/Graphics.hpp>
-#include <algorithm>
+#include "core/Config.h"
 #include <iostream>
-
-constexpr int TILE_SIZE = 128;
-constexpr int TILE_STEP = TILE_SIZE - 8;
 
 MapView::MapView() {
     if (!texture.loadFromFile("assets/textures/map.png")) {
@@ -21,45 +18,20 @@ void MapView::drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, cons
         TILE_SIZE, TILE_SIZE
     );
 
-    const GameMap::Modifier& m = tile.modifier;
+    const auto &[offsetX, offsetY, scale, rotation] = tile.modifier;
 
     sf::Sprite sprite(texture, rect);
     sprite.setOrigin(TILE_SIZE / 2.f, TILE_SIZE / 2.f);
-    sprite.setRotation(static_cast<float>(m.rotation));
-    sprite.setScale(m.scale, m.scale);
+    sprite.setRotation(static_cast<float>(rotation));
+    sprite.setScale(scale, scale);
     sprite.setPosition(
-        static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + m.offsetX,
-        static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + m.offsetY
+        static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + offsetX,
+        static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + offsetY
     );
     window.draw(sprite);
 }
 
-void MapView::drawMap(sf::RenderWindow& window, const Map& map) {
-    // For testing
-    if (!viewInitialized) {
-        viewInitialized = true;
-        view = window.getDefaultView();
-
-        if (map.width > 0 && map.height > 0) {
-            const float mapWidth  = static_cast<float>(map.width * TILE_STEP);
-            const float mapHeight = static_cast<float>(map.height * TILE_STEP);
-            const sf::Vector2f winSize = view.getSize();
-
-            if (winSize.x > 0.f && winSize.y > 0.f) {
-                const float scaleX = mapWidth / winSize.x;
-                const float scaleY = mapHeight / winSize.y;
-                const float scale = std::max(scaleX, scaleY) * 1.05f;
-                if (scale > 1.f) {
-                    view.setSize(winSize * scale);
-                }
-            }
-
-            view.setCenter(mapWidth / 2.f, mapHeight / 2.f);
-        }
-    }
-    window.setView(view);
-
-
+void MapView::drawMap(sf::RenderWindow& window, const Map& map) const {
     static constexpr int zPasses[] = {
         GameMap::ZIndex::Layer0,
         GameMap::ZIndex::Layer1,

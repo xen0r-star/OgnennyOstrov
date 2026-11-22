@@ -1,5 +1,5 @@
-#ifndef GOULAG_GAME_H
-#define GOULAG_GAME_H
+#ifndef GAME_H
+#define GAME_H
 
 #include "Settings.h"
 
@@ -8,6 +8,10 @@
 #include "views/MapView.h"
 #include "views/menu/MenuView.h"
 #include "views/menu/OptionsView.h"
+#include "views/PrisonerView.h"
+
+#include "controllers/client/PlayerController.h"
+#include "models/entities/Prisoner.h"
 
 enum class GameState {
     Menu,
@@ -29,7 +33,10 @@ private:
     void startGame();
     void resetScreenView();
 
+    void updateCamera();
+
     sf::RenderWindow window;
+    sf::View camera;
     GameState state = GameState::Menu;
 
     // Menu data
@@ -41,6 +48,10 @@ private:
     // Game data
     Map map;
     MapView mapView;
+
+    Prisoner prisoner;
+    PrisonerView prisonerView;
+    PlayerController playerController;
 };
 
-#endif // GOULAG_GAME_H
+#endif // GAME_H

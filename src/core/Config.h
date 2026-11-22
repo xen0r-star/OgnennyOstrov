@@ -1,6 +1,9 @@
-#ifndef GOULAG_CONFIG_H
-#define GOULAG_CONFIG_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
-constexpr auto WINDOW_TITLE = "Goulag";
+constexpr auto WINDOW_TITLE = "Ognenny Ostrov";
 
-#endif // GOULAG_CONFIG_H
+constexpr int TILE_SIZE = 128;
+constexpr int TILE_STEP = TILE_SIZE -8;
+
+#endif // CONFIG_H

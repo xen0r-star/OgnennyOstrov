@@ -29,5 +29,7 @@ Map MapGenerator::generateMap(const int height, const int width, const unsigned 
 
     addDecorations(map, rng, playZone);
 
+    buildCollision(map);
+
     return map;
 }

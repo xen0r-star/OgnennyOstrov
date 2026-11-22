@@ -3,6 +3,7 @@
 #include <SFML/Window/Event.hpp>
 #include <iostream>
 #include <random>
+#include <ctime>
 
 #include "../models/map/MapGenerator.h"
 #include "Config.h"
@@ -16,7 +17,7 @@
 
 Game::~Game() = default;
 
-Game::Game() {
+Game::Game() : prisoner(sf::Vector2f(0.f, 0.f)) {
     #ifdef _WIN32
         window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Default);
         ShowWindow(window.getSystemHandle(), SW_MAXIMIZE);
@@ -35,7 +36,21 @@ Game::Game() {
 void Game::startGame() {
     const int seed = static_cast<int>(std::time(nullptr));
     map = MapGenerator::generateMap(65, 65, seed);
+
+    const sf::Vector2f mapCenter(static_cast<float>(map.width * TILE_STEP) / 2.f,
+                                 static_cast<float>(map.height * TILE_STEP) / 2.f);
+    if (!prisoner.moveToNearestFreeSpot(mapCenter, map)) {
+        std::cerr << "No free spot found to spawn the prisoner" << std::endl;
+    }
+
+    updateCamera();
     state = GameState::Playing;
+}
+
+void Game::updateCamera() {
+    camera.setSize(static_cast<float>(window.getSize().x),
+                   static_cast<float>(window.getSize().y));
+    camera.zoom(1.5f);
 }
 
 void Game::run() {
@@ -60,6 +75,10 @@ void Game::processEvents() {
             continue;
         }
 
+        if (event.type == sf::Event::Resized) {
+            updateCamera();
+        }
+
         switch (state) {
             case GameState::Menu:
                 switch (menu.handleEvent(event, window)) {
@@ -80,11 +99,8 @@ void Game::processEvents() {
                     event.key.code == sf::Keyboard::Escape) {
                     state = GameState::Menu;   // back to the menu
                     resetScreenView();
-                    break;
                 }
-
-            // Input Controller
-            break;
+                break;
         }
     }
 }
@@ -96,7 +112,8 @@ void Game::update(sf::Time deltaTime) {
     }
 
     if (state == GameState::Playing) {
-        // Player Move update
+        playerController.update(prisoner);
+        prisoner.update(deltaTime, map);
     }
 }
 
@@ -118,7 +135,11 @@ void Game::render() {
             break;
 
         case GameState::Playing:
+            camera.setCenter(prisoner.getPosition());
+            window.setView(camera);
+
             mapView.drawMap(window, map);
+            prisonerView.draw(window, prisoner);
             break;
 
         case GameState::Options:
