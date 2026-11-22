@@ -7,12 +7,12 @@
 #include <iostream>
 
 namespace {
-    constexpr int FRAME_SIZE = 90;           // Skin size (player.png)
-    constexpr int SKIN_COUNT = 4;            // Number of skins
-    constexpr float REFERENCE_SPEED = 400.f; // Player speed
+    constexpr int FRAME_SIZE = 270;           // Skin size (player.png)
+    constexpr int SKIN_COUNT = 4;             // Number of skins
+    constexpr float REFERENCE_SPEED = 400.f;  // Player speed
 
-    constexpr int HAND_SIZE = 36;            // Hand size (player.png)
-    constexpr int HAND_SHEET_Y = FRAME_SIZE; // Hand position in the sprite sheet
+    constexpr int HAND_SIZE = 108;            // Hand size (player.png)
+    constexpr int HAND_SHEET_Y = FRAME_SIZE;  // Hand position in the sprite sheet
 
     constexpr float HAND_SIDE = PLAYER_DRAW_SIZE * 0.35f;   // Hand offset
     constexpr float HAND_FORWARD = 32.f;                    // Hand position when idle
@@ -23,6 +23,8 @@ PrisonerView::PrisonerView() {
     if (!texture.loadFromFile("assets/textures/player.png")) {
         std::cerr << "Could not load assets/textures/player.png" << std::endl;
     }
+
+    texture.setSmooth(true);
 }
 
 void PrisonerView::reset(const sf::Vector2f position) {

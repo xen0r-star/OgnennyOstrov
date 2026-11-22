@@ -14,7 +14,7 @@ static sf::FloatRect characterPrevious(const sf::Vector2f c) { return {c.x - 160
 static sf::FloatRect characterNext(const sf::Vector2f c)     { return {c.x + 104, c.y + 70, 56, 56};  }
 static sf::FloatRect backButton(const sf::Vector2f c)        { return {c.x - 100, c.y + 210, 200, 56};}
 
-static constexpr int CHARACTER_SIZE = 90;    // size of one frame in the sheet
+static constexpr int CHARACTER_SIZE = 270;   // Skin size (player.png)
 static constexpr int CHARACTER_COUNT = 4;
 static constexpr float PREVIEW_SIZE = 72.f;  // size displayed in the menu
 
@@ -22,6 +22,8 @@ OptionsView::OptionsView() {
     if (!spriteSheet.loadFromFile("assets/textures/player.png")) {
         std::cerr << "Cannot load assets/textures/player.png" << std::endl;
     }
+
+    spriteSheet.setSmooth(true);
 }
 
 void OptionsView::handleEvent(const sf::Event& event, const sf::RenderWindow& window, Settings& settings) {

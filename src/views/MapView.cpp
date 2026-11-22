@@ -5,19 +5,25 @@
 #include <algorithm>
 #include <cmath>
 
+namespace {
+    constexpr int TEXTURE_TILE_SIZE = 384; // Texture tile size (px)
+}
+
 MapView::MapView() {
     if (!texture.loadFromFile("assets/textures/map.png")) {
         std::cerr << "Failed to load assets/textures/map.png\n";
         return;
     }
+
+    texture.setSmooth(true);
 }
 
 MapView::~MapView() = default;
 
 void MapView::drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, const int x, const int y) const {
     const sf::IntRect rect(
-        tile.texture.col * TILE_SIZE, tile.texture.row * TILE_SIZE,
-        TILE_SIZE, TILE_SIZE
+        tile.texture.col * TEXTURE_TILE_SIZE, tile.texture.row * TEXTURE_TILE_SIZE,
+        TEXTURE_TILE_SIZE, TEXTURE_TILE_SIZE
     );
 
     const auto &[offsetX, offsetY, scale, rotation] = tile.modifier;
@@ -25,7 +31,11 @@ void MapView::drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, cons
     sf::Sprite sprite(texture, rect);
     sprite.setOrigin(TILE_SIZE / 2.f, TILE_SIZE / 2.f);
     sprite.setRotation(static_cast<float>(rotation));
-    sprite.setScale(scale, scale);
+
+    sprite.setOrigin(TEXTURE_TILE_SIZE / 2.f, TEXTURE_TILE_SIZE / 2.f);
+    constexpr float k = static_cast<float>(TILE_SIZE) / TEXTURE_TILE_SIZE;  // 0.5
+    sprite.setScale(scale * k, scale * k);
+
     sprite.setPosition(
         static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + offsetX,
         static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + offsetY

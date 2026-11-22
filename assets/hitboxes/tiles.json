@@ -1,5 +1,5 @@
 {
-  "tileSize": 128,
+  "tileSize": 384,
   "tiles": [
     {
       "id": 2, "col": 2, "row": 0,
