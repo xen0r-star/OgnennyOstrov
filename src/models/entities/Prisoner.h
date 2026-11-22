@@ -15,10 +15,12 @@ public:
     explicit Prisoner(sf::Vector2f position);
 
     void setDirection(sf::Vector2f newDirection);
+    void setAimDirection(sf::Vector2f newAimDirection);
     void update(sf::Time dt, const Map& map);
     bool moveToNearestFreeSpot(sf::Vector2f target, const Map& map);
 
     [[nodiscard]] const sf::Vector2f& getPosition() const;
+    [[nodiscard]] const sf::Vector2f& getAimDirection() const;
 
 private:
     static constexpr float HITBOX_RADIUS = 30.f; // 60 px
@@ -32,6 +34,7 @@ private:
 
     sf::Vector2f position;
     sf::Vector2f direction{0.f, 0.f};
+    sf::Vector2f aimDirection{0.f, 1.f};
     float speed = 400.f;
 };
 

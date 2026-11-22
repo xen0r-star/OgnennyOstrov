@@ -52,7 +52,7 @@ private:
     Map map;
     MapView mapView;
 
-    Prisoner prisoner;
+    Prisoner prisoner{{0.f, 0.f}};
     PrisonerView prisonerView;
     FogView fogView;
     PlayerController playerController;

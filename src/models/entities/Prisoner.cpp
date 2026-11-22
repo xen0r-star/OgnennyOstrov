@@ -15,17 +15,28 @@ void Prisoner::setDirection(const sf::Vector2f newDirection) {
     direction = newDirection;
 }
 
+const sf::Vector2f& Prisoner::getAimDirection() const {
+    return aimDirection;
+}
+
+void Prisoner::setAimDirection(const sf::Vector2f newAimDirection) {
+    const float length = std::sqrt(newAimDirection.x * newAimDirection.x + newAimDirection.y * newAimDirection.y);
+    if (length < 0.0001f) return;
+
+    aimDirection = newAimDirection / length;
+}
+
 void Prisoner::update(const sf::Time dt, const Map& map) {
     const sf::Vector2f move = direction * speed * dt.asSeconds();
 
-    // Axe X d'abord
+    // X-axis first
     sf::Vector2f next = position;
     next.x += move.x;
     if (canStandAt(next, map)) {
         position.x = next.x;
     }
 
-    // Puis axe Y, séparément → on glisse le long des murs au lieu de rester collé
+    // Y-axis second
     next = position;
     next.y += move.y;
     if (canStandAt(next, map)) {
@@ -59,8 +70,10 @@ bool Prisoner::canStandAt(const sf::Vector2f pos, const Map& map) {
 }
 
 sf::Vector2f Prisoner::cellCenter(const int cellX, const int cellY) {
-    return {(static_cast<float>(cellX) + 0.5f) * TILE_STEP,
-            (static_cast<float>(cellY) + 0.5f) * TILE_STEP};
+    return {
+        (static_cast<float>(cellX) + 0.5f) * TILE_STEP,
+        (static_cast<float>(cellY) + 0.5f) * TILE_STEP
+    };
 }
 
 bool Prisoner::canStandInCell(const int cellX, const int cellY, const Map& map) const {
