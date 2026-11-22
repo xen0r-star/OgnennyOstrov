@@ -53,24 +53,22 @@ namespace {
         return library;
     }
 
-    // Moves a point of the JSON (0..1 inside the tile) to its place in the world.
-    // Same steps as MapView::drawTile, so the hitbox always matches what is drawn:
-    // scale -> rotation around the center of the tile -> offset -> position of the cell.
+    // Transforms a point (0...1) from the JSON into a point in the world
     sf::Vector2f toWorld(const sf::Vector2f& point, const GameMap::Tile& tile, const int cellX, const int cellY) {
-        const GameMap::Modifier& modifier = tile.modifier;
+        const auto &[offsetX, offsetY, scale, rotation] = tile.modifier;
         constexpr float half = TILE_SIZE / 2.f;
 
         // Position relative to the center of the tile, in pixels
-        const float x = (point.x * TILE_SIZE - half) * modifier.scale;
-        const float y = (point.y * TILE_SIZE - half) * modifier.scale;
+        const float x = (point.x * TILE_SIZE - half) * scale;
+        const float y = (point.y * TILE_SIZE - half) * scale;
 
-        const float angle = static_cast<float>(modifier.rotation) * PI / 180.f;
+        const float angle = static_cast<float>(rotation) * PI / 180.f;
         const float rotatedX = x * std::cos(angle) - y * std::sin(angle);
         const float rotatedY = x * std::sin(angle) + y * std::cos(angle);
 
         return {
-            static_cast<float>(cellX * TILE_STEP) + half + modifier.offsetX + rotatedX,
-            static_cast<float>(cellY * TILE_STEP) + half + modifier.offsetY + rotatedY
+            static_cast<float>(cellX * TILE_STEP) + half + offsetX + rotatedX,
+            static_cast<float>(cellY * TILE_STEP) + half + offsetY + rotatedY
         };
     }
 }
