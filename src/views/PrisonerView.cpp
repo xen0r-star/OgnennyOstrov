@@ -1,25 +1,82 @@
-//
-// Created by amine on 06/10/2026.
-//
-
 #include "PrisonerView.h"
 
+#include "core/Config.h"
+#include "SFML/Graphics/Sprite.hpp"
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
-PrisonerView::PrisonerView() {
-    if (!texture.loadFromFile("assets/textures/prisoner_red.png")) {
-        std::cerr << "Could not load prisoner_red.png" << std::endl;
-        return;
-    }
+namespace {
+    constexpr int FRAME_SIZE = 90;           // Skin size (player.png)
+    constexpr int SKIN_COUNT = 4;            // Number of skins
+    constexpr float REFERENCE_SPEED = 400.f; // Player speed
 
-    sprite.setTexture(texture);
+    constexpr int HAND_SIZE = 36;            // Hand size (player.png)
+    constexpr int HAND_SHEET_Y = FRAME_SIZE; // Hand position in the sprite sheet
 
-    const sf::Vector2u size = texture.getSize();
-    sprite.setOrigin(size.x / 2.f, size.y / 2.f);
-    sprite.setScale(0.3f, 0.3f);
+    constexpr float HAND_SIDE = PLAYER_DRAW_SIZE * 0.42f;   // Hand offset
+    constexpr float HAND_FORWARD = 26.f;                    // Hand position when idle
+    constexpr float HAND_SWING = 11.f;                      // Hand swing amplitude
 }
 
-void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner) {
-    sprite.setPosition(prisoner.getPosition());
-    window.draw(sprite);
+PrisonerView::PrisonerView() {
+    if (!texture.loadFromFile("assets/textures/player.png")) {
+        std::cerr << "Could not load assets/textures/player.png" << std::endl;
+    }
+}
+
+void PrisonerView::reset(const sf::Vector2f position) {
+    lastPosition = position;
+    moveAmount = 0.f;
+    walkPhase = 0.f;
+}
+
+void PrisonerView::update(const sf::Time dt, const Prisoner& prisoner) {
+    const float seconds = std::max(dt.asSeconds(), 0.0001f);
+    const sf::Vector2f delta = prisoner.getPosition() - lastPosition;
+    lastPosition = prisoner.getPosition();
+
+    const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+    const float target = std::min(distance / seconds / REFERENCE_SPEED, 1.f);
+
+    moveAmount += (target - moveAmount) * (1.f - std::exp(-14.f * seconds));
+    walkPhase += distance * 0.025f;
+    idleTime += seconds;
+}
+
+void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int character) const {
+    character = std::clamp(character, 0, SKIN_COUNT - 1);
+    const sf::Vector2f pos = prisoner.getPosition();
+
+    const float swing = std::sin(walkPhase) * moveAmount;                      // -1..1
+    const float bounce = std::abs(std::sin(walkPhase)) * moveAmount;         //  0..1
+    const float breath = std::sin(idleTime * 2.2f) * (1.f - moveAmount);     // Breathing at rest
+
+    // Hands
+    if (texture.getSize().x >= static_cast<unsigned>(HAND_SIZE * (character + 1)) &&
+        texture.getSize().y >= static_cast<unsigned>(HAND_SHEET_Y + HAND_SIZE)) {
+        sf::Sprite hand(texture, sf::IntRect(character * HAND_SIZE, HAND_SHEET_Y, HAND_SIZE, HAND_SIZE));
+        hand.setOrigin(HAND_SIZE / 2.f, HAND_SIZE / 2.f);
+
+        constexpr float scale = PLAYER_DRAW_SIZE / FRAME_SIZE;
+        hand.setScale(scale, scale);
+
+        const float handY = pos.y + HAND_FORWARD - bounce * 3.f + breath * 1.5f;
+
+        hand.setPosition(pos.x - HAND_SIDE, handY + swing * HAND_SWING);
+        window.draw(hand);
+        hand.setPosition(pos.x + HAND_SIDE, handY - swing * HAND_SWING);
+        window.draw(hand);
+    }
+
+    // Body
+    if (texture.getSize().x >= static_cast<unsigned>(FRAME_SIZE * (character + 1))) {
+        sf::Sprite body(texture, sf::IntRect(character * FRAME_SIZE, 0, FRAME_SIZE, FRAME_SIZE));
+        body.setOrigin(FRAME_SIZE / 2.f, FRAME_SIZE / 2.f);
+
+        constexpr float scale = PLAYER_DRAW_SIZE / FRAME_SIZE;
+        body.setScale(scale * (1.f + 0.015f * breath), scale * (1.f - 0.015f * breath));
+        body.setPosition(pos.x, pos.y - bounce * 3.f);
+        window.draw(body);
+    }
 }

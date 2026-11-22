@@ -3,7 +3,12 @@
 
 constexpr auto WINDOW_TITLE = "Ognenny Ostrov";
 
-constexpr int TILE_SIZE = 128;
-constexpr int TILE_STEP = TILE_SIZE -8;
+constexpr int TILE_SIZE = 128;                 // Px
+constexpr int TILE_STEP = TILE_SIZE - 8;
+
+constexpr float CAMERA_VISIBLE_HEIGHT = 900.f; // Camera zoom (Px)
+constexpr float CAMERA_SMOOTHNESS = 8.f;       // Camera smoothness (higher = smoother)
+
+constexpr float PLAYER_DRAW_SIZE = 84.f;       // Px
 
 #endif // CONFIG_H

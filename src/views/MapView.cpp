@@ -2,6 +2,8 @@
 #include <SFML/Graphics.hpp>
 #include "core/Config.h"
 #include <iostream>
+#include <algorithm>
+#include <cmath>
 
 MapView::MapView() {
     if (!texture.loadFromFile("assets/textures/map.png")) {
@@ -39,9 +41,19 @@ void MapView::drawMap(sf::RenderWindow& window, const Map& map) const {
         GameMap::ZIndex::Layer3
     };
 
+    const sf::View view = window.getView();
+    const sf::Vector2f center = view.getCenter();
+    const sf::Vector2f half = view.getSize() / 2.f;
+    constexpr int margin = 2;
+
+    const int minX = std::max(0, static_cast<int>(std::floor((center.x - half.x) / TILE_STEP)) - margin);
+    const int maxX = std::min(map.width - 1, static_cast<int>(std::floor((center.x + half.x) / TILE_STEP)) + margin);
+    const int minY = std::max(0, static_cast<int>(std::floor((center.y - half.y) / TILE_STEP)) - margin);
+    const int maxY = std::min(map.height - 1, static_cast<int>(std::floor((center.y + half.y) / TILE_STEP)) + margin);
+
     for (const int z : zPasses) {
-        for (int y = 0; y < map.height; ++y) {
-            for (int x = 0; x < map.width; ++x) {
+        for (int y = minY; y <= maxY; ++y) {
+            for (int x = minX; x <= maxX; ++x) {
                 for (const GameMap::Tile& tile : map.cells[y][x].layers) {
                     if (tile.zIndex == z) {
                         drawTile(window, tile, x, y);
