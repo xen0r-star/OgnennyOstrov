@@ -1,5 +1,5 @@
-#ifndef GOULAG_GAME_SERVER_H
-#define GOULAG_GAME_SERVER_H
+#ifndef GAME_SERVER_H
+#define GAME_SERVER_H
 
 #include <SFML/Network.hpp>
 #include <map>
@@ -47,4 +47,4 @@ private:
     bool running = false;
 };
 
-#endif // GOULAG_GAME_SERVER_H
+#endif // GAME_SERVER_H

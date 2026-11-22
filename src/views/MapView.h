@@ -1,5 +1,5 @@
-#ifndef GOULAG_MAPVIEW_H
-#define GOULAG_MAPVIEW_H
+#ifndef OGNENNYOSTROV_MAPVIEW_H
+#define OGNENNYOSTROV_MAPVIEW_H
 
 #include "../models/map/MapGenerator.h"
 #include <SFML/Graphics.hpp>
@@ -9,21 +9,11 @@ public:
     MapView();
     ~MapView();
 
-    void drawMap(sf::RenderWindow& window, const TileMap& map);
-
-    // For testing
-    void handleEvent(const sf::Event& event, sf::RenderWindow& window);
+    void drawMap(sf::RenderWindow& window, const Map& map) const;
 private:
     sf::Texture texture;
 
-    static float angleToDegrees(Angle angle);
-    void drawTile(sf::RenderWindow& window, const Tile& tile, int i, int j) const;
-
-    // For testing
-    sf::View view;
-    bool viewInitialized = false;
-    bool isDragging = false;
-    sf::Vector2i oldMousePos;
+    void drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, int x, int y) const;
 };
 
-#endif // GOULAG_MAPVIEW_H
+#endif // OGNENNYOSTROV_MAPVIEW_H
