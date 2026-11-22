@@ -19,8 +19,8 @@ static constexpr int CHARACTER_COUNT = 4;
 static constexpr float PREVIEW_SIZE = 72.f;  // size displayed in the menu
 
 OptionsView::OptionsView() {
-    if (!spriteSheet.loadFromFile("assets/characters/player.png")) {
-        std::cerr << "Cannot load assets/characters/player.png" << std::endl;
+    if (!spriteSheet.loadFromFile("assets/textures/player.png")) {
+        std::cerr << "Cannot load assets/textures/player.png" << std::endl;
     }
 }
 

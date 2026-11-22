@@ -9,6 +9,7 @@
 #include "views/menu/MenuView.h"
 #include "views/menu/OptionsView.h"
 #include "views/PrisonerView.h"
+#include "views/FogView.h"
 
 #include "controllers/client/PlayerController.h"
 #include "models/entities/Prisoner.h"
@@ -34,9 +35,11 @@ private:
     void resetScreenView();
 
     void updateCamera();
+    void followPlayer(sf::Time dt, bool snap);
 
     sf::RenderWindow window;
     sf::View camera;
+    sf::Vector2f cameraCenter{0.f, 0.f};
     GameState state = GameState::Menu;
 
     // Menu data
@@ -51,6 +54,7 @@ private:
 
     Prisoner prisoner;
     PrisonerView prisonerView;
+    FogView fogView;
     PlayerController playerController;
 };
 
