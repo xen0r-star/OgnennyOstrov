@@ -9,7 +9,6 @@ namespace {
         const float lengthSquared = ab.x * ab.x + ab.y * ab.y;
         if (lengthSquared == 0.f) return a;
 
-        // t = 0 -> point a, t = 1 -> point b
         const float t = ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / lengthSquared;
         return a + ab * std::clamp(t, 0.f, 1.f);
     }
