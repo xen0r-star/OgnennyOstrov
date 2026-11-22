@@ -14,9 +14,9 @@ namespace {
     constexpr int HAND_SIZE = 36;            // Hand size (player.png)
     constexpr int HAND_SHEET_Y = FRAME_SIZE; // Hand position in the sprite sheet
 
-    constexpr float HAND_SIDE = PLAYER_DRAW_SIZE * 0.42f;   // Hand offset
-    constexpr float HAND_FORWARD = 26.f;                    // Hand position when idle
-    constexpr float HAND_SWING = 11.f;                      // Hand swing amplitude
+    constexpr float HAND_SIDE = PLAYER_DRAW_SIZE * 0.35f;   // Hand offset
+    constexpr float HAND_FORWARD = 32.f;                    // Hand position when idle
+    constexpr float HAND_SWING = 0.f;                       // Hand swing amplitude
 }
 
 PrisonerView::PrisonerView() {
@@ -61,11 +61,17 @@ void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int 
         constexpr float scale = PLAYER_DRAW_SIZE / FRAME_SIZE;
         hand.setScale(scale, scale);
 
-        const float handY = pos.y + HAND_FORWARD - bounce * 3.f + breath * 1.5f;
 
-        hand.setPosition(pos.x - HAND_SIDE, handY + swing * HAND_SWING);
+        const sf::Vector2f aim = prisoner.getAimDirection();
+        const sf::Vector2f side(-aim.y, aim.x);
+        constexpr float radToDeg = 180.f / 3.14159265f;
+        hand.setRotation(std::atan2(aim.y, aim.x) * radToDeg - 90.f);
+
+        const sf::Vector2f center(pos.x, pos.y - bounce * 3.f + breath * 1.5f);
+
+        hand.setPosition(center - side * HAND_SIDE + aim * (HAND_FORWARD + swing * HAND_SWING));
         window.draw(hand);
-        hand.setPosition(pos.x + HAND_SIDE, handY - swing * HAND_SWING);
+        hand.setPosition(center + side * HAND_SIDE + aim * (HAND_FORWARD - swing * HAND_SWING));
         window.draw(hand);
     }
 

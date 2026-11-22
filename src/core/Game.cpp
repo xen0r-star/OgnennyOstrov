@@ -19,7 +19,7 @@
 
 Game::~Game() = default;
 
-Game::Game() : prisoner(sf::Vector2f(0.f, 0.f)) {
+Game::Game() {
     #ifdef _WIN32
         window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Default);
         ShowWindow(window.getSystemHandle(), SW_MAXIMIZE);
@@ -134,7 +134,7 @@ void Game::update(sf::Time deltaTime) {
     }
 
     if (state == GameState::Playing) {
-        playerController.update(prisoner);
+        playerController.update(prisoner, window, camera);
         prisoner.update(deltaTime, map);
         followPlayer(deltaTime, false); // Smoothly follow the player
         prisonerView.update(deltaTime, prisoner);

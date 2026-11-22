@@ -1,9 +1,9 @@
 #include "PlayerController.h"
 #include <SFML/Window/Keyboard.hpp>
+#include <SFML/Window/Mouse.hpp>
 #include <cmath>
 
-
-void PlayerController::update(Prisoner& prisoner) {
+void PlayerController::update(Prisoner& prisoner, const sf::RenderWindow& window, const sf::View& camera) {
     sf::Vector2f direction(0.f ,0.f);
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z)||sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) { direction.y -= 1.f; }
@@ -21,4 +21,7 @@ void PlayerController::update(Prisoner& prisoner) {
     }
 
     prisoner.setDirection(direction);
+
+    const sf::Vector2f mouseWorld = window.mapPixelToCoords(sf::Mouse::getPosition(window), camera);
+    prisoner.setAimDirection(mouseWorld - prisoner.getPosition());
 }
