@@ -36,6 +36,7 @@ private:
 
     void updateCamera();
     void followPlayer(sf::Time dt, bool snap);
+    void tryOpenDoor();
 
     sf::RenderWindow window;
     sf::View camera;

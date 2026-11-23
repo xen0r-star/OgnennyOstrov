@@ -73,32 +73,43 @@ namespace {
     }
 }
 
-void MapGenerator::buildCollision(Map& map) {
-    const HitboxLibrary library = loadHitboxes();
+namespace {
+    const HitboxLibrary& hitboxLibrary() {
+        static const HitboxLibrary library = loadHitboxes();
+        return library;
+    }
+}
 
+void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
+    MapCell& cell = map.cells[y][x];
+    cell.hitboxes.clear();
+    cell.hides = false;
+
+    const HitboxLibrary& library = hitboxLibrary();
+
+    for (const GameMap::Tile& tile : cell.layers) {
+        if (isTile(tile, Tiles::PROP_BUSH)) {
+            cell.hides = true;
+            continue;
+        }
+
+        const auto found = library.find({tile.texture.col, tile.texture.row});
+        if (found == library.end()) continue;
+
+        for (const Hitbox::Polygon& shape : found->second) {
+            Hitbox::Polygon polygon;
+            for (const sf::Vector2f& point : shape.points) {
+                polygon.points.push_back(toWorld(point, tile, x, y));
+            }
+            cell.hitboxes.push_back(polygon);
+        }
+    }
+}
+
+void MapGenerator::buildCollision(Map& map) {
     for (int y = 0; y < map.height; ++y) {
         for (int x = 0; x < map.width; ++x) {
-            MapCell& cell = map.cells[y][x];
-
-            for (const GameMap::Tile& tile : cell.layers) {
-                // A bush doesn't block, it only hides the player
-                if (isTile(tile, Tiles::PROP_BUSH)) {
-                    cell.hides = true;
-                    continue;
-                }
-
-                // No entry in the JSON = no hitbox = we can walk through
-                const auto found = library.find({tile.texture.col, tile.texture.row});
-                if (found == library.end()) continue;
-
-                for (const Hitbox::Polygon& shape : found->second) {
-                    Hitbox::Polygon polygon;
-                    for (const sf::Vector2f& point : shape.points) {
-                        polygon.points.push_back(toWorld(point, tile, x, y));
-                    }
-                    cell.hitboxes.push_back(polygon);
-                }
-            }
+            buildCellCollision(map, x, y);
         }
     }
 }
