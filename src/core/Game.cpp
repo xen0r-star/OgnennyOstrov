@@ -3,6 +3,9 @@
 #include <SFML/Window/Event.hpp>
 #include <iostream>
 #include <random>
+#include <ctime>
+#include <cmath>
+#include <algorithm>
 
 #include "../models/map/MapGenerator.h"
 #include "Config.h"
@@ -24,7 +27,7 @@ Game::Game() {
         window.create(sf::VideoMode::getDesktopMode(), WINDOW_TITLE, sf::Style::Fullscreen);
     #endif
 
-    window.setFramerateLimit(60);
+    window.setVerticalSyncEnabled(true);
 
     if (!font.loadFromFile("assets/fonts/LilitaOne-Regular.ttf")) {
         std::cerr << "Cannot load assets/fonts/LilitaOne-Regular.ttf" << std::endl;
@@ -35,14 +38,48 @@ Game::Game() {
 void Game::startGame() {
     const int seed = static_cast<int>(std::time(nullptr));
     map = MapGenerator::generateMap(65, 65, seed);
+
+    const sf::Vector2f mapCenter(static_cast<float>(map.width * TILE_STEP) / 2.f,
+                                 static_cast<float>(map.height * TILE_STEP) / 2.f);
+    if (!prisoner.moveToNearestFreeSpot(mapCenter, map)) {
+        std::cerr << "No free spot found to spawn the prisoner" << std::endl;
+    }
+
+    updateCamera();
+    followPlayer(sf::Time::Zero, true); // Snap the camera to the player position at the start of the game
+    prisonerView.reset(prisoner.getPosition());
     state = GameState::Playing;
+}
+
+void Game::updateCamera() {
+    const float width = static_cast<float>(window.getSize().x);
+    const float height = std::max(1.f, static_cast<float>(window.getSize().y));
+
+    camera.setSize(CAMERA_VISIBLE_HEIGHT * width / height, CAMERA_VISIBLE_HEIGHT);
+}
+
+void Game::followPlayer(const sf::Time dt, const bool snap) {
+    const sf::Vector2f target = prisoner.getPosition();
+
+    if (snap) {
+        cameraCenter = target;
+    } else {
+        // Smoothly interpolate the camera position towards the target position
+        const float t = 1.f - std::exp(-CAMERA_SMOOTHNESS * dt.asSeconds());
+        cameraCenter += (target - cameraCenter) * t;
+    }
+
+    const float pixel = camera.getSize().y / std::max(1.f, static_cast<float>(window.getSize().y));
+    camera.setCenter(std::round(cameraCenter.x / pixel) * pixel,
+                     std::round(cameraCenter.y / pixel) * pixel);
 }
 
 void Game::run() {
     sf::Clock clock;
 
     while (window.isOpen()) {
-        const sf::Time deltaTime = clock.restart();
+        sf::Time deltaTime = clock.restart();
+        deltaTime = std::min(deltaTime, sf::seconds(0.05f));
 
         processEvents();
         update(deltaTime);
@@ -58,6 +95,10 @@ void Game::processEvents() {
         if (event.type == sf::Event::Closed) {
             window.close();
             continue;
+        }
+
+        if (event.type == sf::Event::Resized) {
+            updateCamera();
         }
 
         switch (state) {
@@ -80,11 +121,8 @@ void Game::processEvents() {
                     event.key.code == sf::Keyboard::Escape) {
                     state = GameState::Menu;   // back to the menu
                     resetScreenView();
-                    break;
                 }
-
-            // Input Controller
-            break;
+                break;
         }
     }
 }
@@ -96,7 +134,10 @@ void Game::update(sf::Time deltaTime) {
     }
 
     if (state == GameState::Playing) {
-        // Player Move update
+        playerController.update(prisoner, window, camera);
+        prisoner.update(deltaTime, map);
+        followPlayer(deltaTime, false); // Smoothly follow the player
+        prisonerView.update(deltaTime, prisoner);
     }
 }
 
@@ -118,7 +159,11 @@ void Game::render() {
             break;
 
         case GameState::Playing:
+            window.setView(camera);
+
             mapView.drawMap(window, map);
+            prisonerView.draw(window, prisoner, settings.character);
+            fogView.draw(window, prisoner.getPosition());
             break;
 
         case GameState::Options:

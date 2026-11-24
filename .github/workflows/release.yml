@@ -44,7 +44,7 @@ jobs:
 
   # --- JOB 2: Build Linux Client & Server independently ---
   build-game-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
       - name: Checkout repository

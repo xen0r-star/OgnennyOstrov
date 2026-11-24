@@ -1,5 +1,5 @@
-#ifndef GOULAG_DRAWING_H
-#define GOULAG_DRAWING_H
+#ifndef OGNENNYOSTROV_DRAWING_H
+#define OGNENNYOSTROV_DRAWING_H
 
 #include <SFML/Graphics.hpp>
 #include <string>
@@ -114,4 +114,4 @@ inline void drawBrightnessVeil(sf::RenderWindow& window, const int brightness) {
     window.setView(gameView);
 }
 
-#endif //GOULAG_DRAWING_H
+#endif //OGNENNYOSTROV_DRAWING_H

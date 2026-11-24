@@ -1,7 +1,9 @@
-#ifndef GOULAG_TILE_H
-#define GOULAG_TILE_H
+#ifndef OGNENNYOSTROV_TILE_H
+#define OGNENNYOSTROV_TILE_H
 
 #include <vector>
+
+#include "models/map/Hitbox.h"
 
 namespace GameMap {
     struct Texture {
@@ -57,6 +59,9 @@ namespace GameMap {
 
 struct MapCell {
     std::vector<GameMap::Tile> layers;
+
+    std::vector<Hitbox::Polygon> hitboxes;   // shapes that block movement (in pixels, world coordinates)
+    bool hides = false;                      // bush
 };
 
 struct Map {
@@ -67,4 +72,4 @@ struct Map {
     std::vector<GameMap::HouseInfo> houses = std::vector<GameMap::HouseInfo>();
 };
 
-#endif // GOULAG_TILE_H
+#endif // OGNENNYOSTROV_TILE_H

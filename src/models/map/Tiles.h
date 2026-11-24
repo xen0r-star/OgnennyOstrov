@@ -1,5 +1,5 @@
-#ifndef GOULAG_TILES_H
-#define GOULAG_TILES_H
+#ifndef OGNENNYOSTROV_TILES_H
+#define OGNENNYOSTROV_TILES_H
 
 #include "models/map/Tile.h"
 
@@ -67,4 +67,4 @@ namespace Tiles {
     inline constexpr auto WATCHTOWER                = GameMap::Tile(GameMap::Texture(8, 4));
 }
 
-#endif // GOULAG_TILES_H
+#endif // OGNENNYOSTROV_TILES_H

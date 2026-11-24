@@ -4,7 +4,7 @@ Map MapGenerator::generateMap(const int height, const int width, const unsigned 
     Map map;
     std::mt19937 rng(seed);
 
-    constexpr int margin = 5;
+    constexpr int margin = 8;
     constexpr int border = margin + 1;
 
     initMap(map, height + 2 * border, width + 2 * border);
@@ -28,6 +28,8 @@ Map MapGenerator::generateMap(const int height, const int width, const unsigned 
     addHouseDecorations(map, rng, playZone);
 
     addDecorations(map, rng, playZone);
+
+    buildCollision(map);
 
     return map;
 }
