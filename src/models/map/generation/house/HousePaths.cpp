@@ -27,9 +27,9 @@ namespace {
     constexpr int ROT_END_DOWN       = 180;
     constexpr int ROT_END_LEFT       = 270;
 
-    // Dirt field texture (Layer0)
-    constexpr GameMap::Texture DIRT_TEXTURES[] = {
-        Tiles::GROUND_DIRT.texture,
+    // Stone zone field texture (Layer0)
+    constexpr GameMap::Texture STONE_ZONE_TEXTURES[] = {
+        Tiles::FLOOR_STONE_PLAIN.texture,
     };
     // Guard path textures (Layer1)
     constexpr GameMap::Texture PATH_TEXTURES[] = {
@@ -94,12 +94,12 @@ void MapGenerator::addHousePaths(Map& map, std::mt19937& rng, const Rect& playZo
         }
     }
 
-    // Dirt zone: impassable for house paths
-    constexpr int dirtCount = std::size(DIRT_TEXTURES);
-    std::vector<unsigned char> dirt(W * H, 0);
+    // Stone zone: impassable for house paths
+    constexpr int stoneZoneCount = std::size(STONE_ZONE_TEXTURES);
+    std::vector<unsigned char> stoneZone(W * H, 0);
     for (int y = playZone.y; y < playZone.y + H; ++y) {
         for (int x = playZone.x; x < playZone.x + W; ++x) {
-            if (hasTexture(x, y, GameMap::ZIndex::Layer0, DIRT_TEXTURES, dirtCount)) dirt[idx(x, y)] = 1;
+            if (hasTexture(x, y, GameMap::ZIndex::Layer0, STONE_ZONE_TEXTURES, stoneZoneCount)) stoneZone[idx(x, y)] = 1;
         }
     }
 
@@ -144,7 +144,7 @@ void MapGenerator::addHousePaths(Map& map, std::mt19937& rng, const Rect& playZo
     auto addAnchor = [&](House& hs, const int ax, const int ay, const int outDir) {
         if (!inZone(ax, ay)) return;
         const int i = idx(ax, ay);
-        if (houseId[i] >= 0 || lineKind[i] != 0 || dirt[i]) return;
+        if (houseId[i] >= 0 || lineKind[i] != 0 || stoneZone[i]) return;
         hs.anchors.push_back({ ax, ay, outDir });
     };
     for (House& hs : houses) {
@@ -313,7 +313,7 @@ void MapGenerator::addHousePaths(Map& map, std::mt19937& rng, const Rect& playZo
 
                 const int ni = idx(nx, ny);
                 if (houseId[ni] >= 0) continue;
-                if (dirt[ni]) continue;
+                if (stoneZone[ni]) continue;
 
                 int step = (edge[ni] != 0) ? OWN_COST : FREE_COST;
                 if (lineKind[ni] != 0) {
@@ -409,29 +409,125 @@ void MapGenerator::addHousePaths(Map& map, std::mt19937& rng, const Rect& playZo
             const GameMap::Tile straight = isThick ? Tiles::PATH_STRAIGHT_2 : Tiles::PATH_STRAIGHT_1;
             const GameMap::Tile curve    = isThick ? Tiles::PATH_CURVE_2    : Tiles::PATH_CURVE_1;
 
+            // Is the neighbour in direction d a style 2 tile (straight or curve only, not a junction)?
+            auto isStyle2Link = [&](const int d) {
+                const int nx = x + DX[d];
+                const int ny = y + DY[d];
+                if (nx < playZone.x || ny < playZone.y || nx >= playZone.x + W || ny >= playZone.y + H) return false;
+
+                const int ni = idx(nx, ny);
+                if (!(thick[ni] || (lineKind[ni] & GUARD))) return false;
+
+                int nMask = edge[ni];
+                if (lineKind[ni] & GUARD) {
+                    for (int k = 0; k < 4; ++k) {
+                        const int mx = nx + DX[k];
+                        const int my = ny + DY[k];
+                        if (mx < playZone.x || my < playZone.y || mx >= playZone.x + W || my >= playZone.y + H) continue;
+                        if (lineKind[idx(mx, my)] & GUARD) nMask |= (1 << k);
+                    }
+                }
+
+                const int bits = (nMask & UP ? 1 : 0) + (nMask & RIGHT ? 1 : 0) + (nMask & DOWN ? 1 : 0) + (nMask & LEFT ? 1 : 0);
+                return bits == 2; // straight or curve (3 or 4 bits = junction, 1 bit = end)
+            };
+
             GameMap::Tile tile;
-            switch (mask) {
-                case UP | DOWN:    tile = straight; tile.modifier.rotation = 0;   break;
-                case LEFT | RIGHT: tile = straight; tile.modifier.rotation = 90;  break;
-                case RIGHT | DOWN: tile = curve;    tile.modifier.rotation = 0;   break;
-                case LEFT | DOWN:  tile = curve;    tile.modifier.rotation = 90;  break;
-                case LEFT | UP:    tile = curve;    tile.modifier.rotation = 180; break;
-                case RIGHT | UP:   tile = curve;    tile.modifier.rotation = 270; break;
+            bool placed = false;
 
-                case RIGHT | DOWN | LEFT: tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_UP;    break;
-                case UP | DOWN | LEFT:    tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_RIGHT; break;
-                case UP | RIGHT | LEFT:   tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_DOWN;  break;
-                case UP | RIGHT | DOWN:   tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_LEFT;  break;
+            // Style 1 straight touching a style 2 tile: use the transition tile (PATH_STRAIGHT_1_TO_2)
+            if (!isThick && (mask == (UP | DOWN) || mask == (LEFT | RIGHT))) {
+                const int dA = (mask == (UP | DOWN)) ? 2 : 1; // DOWN / RIGHT
+                const int dB = (dA + 2) & 3;                  // opposite
+                const bool a = isStyle2Link(dA);
+                const bool b = isStyle2Link(dB);
 
-                case UP | RIGHT | DOWN | LEFT: tile = Tiles::PATH_CROSSROADS; tile.modifier.rotation = 0; break;
+                if (a != b) {
+                    const int d2 = a ? dA : dB; // direction of the style 2 side
+                    constexpr int ROT_TO_2[4] = { 180, 270, 0, 90 }; // style 2 side: UP, RIGHT, DOWN, LEFT
+                    tile = Tiles::PATH_STRAIGHT_1_TO_2;
+                    tile.modifier.rotation = ROT_TO_2[d2];
+                    placed = true;
+                }
+            }
 
-                case UP:    tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_UP;    break;
-                case RIGHT: tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_RIGHT; break;
-                case DOWN:  tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_DOWN;  break;
-                case LEFT:  tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_LEFT;  break;
-                default: continue;
+            if (!placed) {
+                switch (mask) {
+                    case UP | DOWN:    tile = straight; tile.modifier.rotation = 0;   break;
+                    case LEFT | RIGHT: tile = straight; tile.modifier.rotation = 90;  break;
+                    case RIGHT | DOWN: tile = curve;    tile.modifier.rotation = 0;   break;
+                    case LEFT | DOWN:  tile = curve;    tile.modifier.rotation = 90;  break;
+                    case LEFT | UP:    tile = curve;    tile.modifier.rotation = 180; break;
+                    case RIGHT | UP:   tile = curve;    tile.modifier.rotation = 270; break;
+
+                    case RIGHT | DOWN | LEFT: tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_UP;    break;
+                    case UP | DOWN | LEFT:    tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_RIGHT; break;
+                    case UP | RIGHT | LEFT:   tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_DOWN;  break;
+                    case UP | RIGHT | DOWN:   tile = Tiles::PATH_T_JUNCTION; tile.modifier.rotation = ROT_T_MISSING_LEFT;  break;
+
+                    case UP | RIGHT | DOWN | LEFT: tile = Tiles::PATH_CROSSROADS; tile.modifier.rotation = 0; break;
+
+                    case UP:    tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_UP;    break;
+                    case RIGHT: tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_RIGHT; break;
+                    case DOWN:  tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_DOWN;  break;
+                    case LEFT:  tile = Tiles::PATH_END; tile.modifier.rotation = ROT_END_LEFT;  break;
+                    default: continue;
+                }
             }
             addTile(map, x, y, tile, GameMap::ZIndex::Layer1);
         }
+    }
+
+    // ---------- 7. Size transition (PATH_STRAIGHT_1_TO_2) ----------
+    auto sameTex = [](const GameMap::Texture& a, const GameMap::Texture& b) {
+        return a.col == b.col && a.row == b.row;
+    };
+    auto pathTexture = [&](const int x, const int y, GameMap::Texture& out) {
+        if (x < playZone.x || y < playZone.y || x >= playZone.x + W || y >= playZone.y + H) return false;
+        for (const GameMap::Tile& t : map.cells[y][x].layers) {
+            if (t.zIndex != GameMap::ZIndex::Layer1) continue;
+            out = t.texture;
+            return true;
+        }
+        return false;
+    };
+    auto isJunction = [&](const int x, const int y) {
+        GameMap::Texture tex;
+        return pathTexture(x, y, tex) &&
+               (sameTex(tex, Tiles::PATH_T_JUNCTION.texture) || sameTex(tex, Tiles::PATH_CROSSROADS.texture));
+    };
+
+    struct Transition { int x, y, rotation; };
+    std::vector<Transition> transitions;
+    for (int y = playZone.y; y < playZone.y + H; ++y) {
+        for (int x = playZone.x; x < playZone.x + W; ++x) {
+            GameMap::Texture tex;
+            if (!pathTexture(x, y, tex)) continue;
+            const bool isStyle1 = sameTex(tex, Tiles::PATH_STRAIGHT_1.texture);
+            const bool isStyle2 = sameTex(tex, Tiles::PATH_STRAIGHT_2.texture);
+            if (!isStyle1 && !isStyle2) continue;
+
+            // Axis of the straight tile (direction indexes: 0 = up, 1 = right, 2 = down, 3 = left)
+            int rot = 0;
+            for (const GameMap::Tile& t : map.cells[y][x].layers) {
+                if (t.zIndex == GameMap::ZIndex::Layer1) rot = ((t.modifier.rotation % 360) + 360) % 360;
+            }
+
+            const int dA = (rot % 180 == 0) ? 0 : 1;
+            const int dB = (dA + 2) & 3;
+            const bool jA = isJunction(x + DX[dA], y + DY[dA]);
+            const bool jB = isJunction(x + DX[dB], y + DY[dB]);
+            if (jA == jB) continue; // no junction, or one on each side: nothing to do
+            if (!isStyle2) continue;
+
+            const int dJunction = jA ? dA : dB;
+            transitions.push_back({ x, y, dJunction * 90 }); // big side: up 0, right 90, down 180, left 270
+        }
+    }
+
+    for (const auto& [x, y, rotation] : transitions) {
+        GameMap::Tile tile = Tiles::PATH_STRAIGHT_1_TO_2;
+        tile.modifier.rotation = rotation;
+        addTile(map, x, y, tile, GameMap::ZIndex::Layer1);
     }
 }

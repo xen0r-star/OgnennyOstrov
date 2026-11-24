@@ -24,7 +24,7 @@ private:
     static void addGuardPaths(Map& map, std::mt19937& rng, const Rect& playZone);
     static void addRailPaths(Map& map, std::mt19937& rng, const Rect& playZone);
     static void buildHouseFloors(Map& map, std::mt19937& rng, const Rect& playZone);
-    static void buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void buildStoneZones(Map& map, std::mt19937& rng, const Rect& playZone);
     static void correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect& playZone);
     static void buildHouseWalls(Map& map, std::mt19937& rng, const Rect& playZone);
     static void addHousePaths(Map& map, std::mt19937& rng, const Rect& playZone);

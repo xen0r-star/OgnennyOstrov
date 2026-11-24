@@ -54,7 +54,7 @@ void MapGenerator::addHouseDoors(Map& map, std::mt19937& rng, const Rect& playZo
             return t.texture.col == ref.texture.col && t.texture.row == ref.texture.row;
         };
 
-        if (is(Tiles::PATH_STRAIGHT_1) || is(Tiles::PATH_STRAIGHT_2)) {
+        if (is(Tiles::PATH_STRAIGHT_1) || is(Tiles::PATH_STRAIGHT_2) || is(Tiles::PATH_STRAIGHT_1_TO_2)) {
             return (rot % 180 == 0) ? (UP | DOWN) : (LEFT | RIGHT);
         }
         if (is(Tiles::PATH_CURVE_1) || is(Tiles::PATH_CURVE_2)) {
