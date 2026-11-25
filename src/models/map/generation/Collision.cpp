@@ -73,38 +73,49 @@ namespace {
             static_cast<float>(cellY * TILE_STEP) + half + offsetY + rotatedY
         };
     }
+
+    const HitboxLibrary& hitboxLibrary() {
+        static const HitboxLibrary library = loadHitboxes();
+        return library;
+    }
+}
+
+
+void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
+    MapCell& cell = map.cells[y][x];
+    cell.hitboxes.clear();
+    cell.hideZones.clear(); // Pense à vider hideZones comme hitboxes (vérifie le nom exact dans MapCell)
+
+    const HitboxLibrary& library = hitboxLibrary();
+
+    for (const GameMap::Tile& tile : cell.layers) {
+        // A bush doesn't block, it only hides the player
+        if (isTile(tile, Tiles::PROP_BUSH)) {
+            cell.hideZones.push_back({
+                .x = static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetX,
+                .y = static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetY,
+                .radius = TILE_SIZE / 2.f * tile.modifier.scale * BUSH_HIDE_RATIO
+            });
+            continue;
+        }
+
+        const auto found = library.find({tile.texture.col, tile.texture.row});
+        if (found == library.end()) continue;
+
+        for (const Hitbox::Polygon& shape : found->second) {
+            Hitbox::Polygon polygon;
+            for (const sf::Vector2f& point : shape.points) {
+                polygon.points.push_back(toWorld(point, tile, x, y));
+            }
+            cell.hitboxes.push_back(polygon);
+        }
+    }
 }
 
 void MapGenerator::buildCollision(Map& map) {
-    const HitboxLibrary library = loadHitboxes();
-
     for (int y = 0; y < map.height; ++y) {
         for (int x = 0; x < map.width; ++x) {
-            MapCell& cell = map.cells[y][x];
-
-            for (const GameMap::Tile& tile : cell.layers) {
-                // A bush doesn't block, it only hides the player
-                if (isTile(tile, Tiles::PROP_BUSH)) {
-                    cell.hideZones.push_back({
-                        .x = static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetX,
-                        .y = static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetY,
-                        .radius = TILE_SIZE / 2.f * tile.modifier.scale * BUSH_HIDE_RATIO
-                    });
-                    continue;
-                }
-
-                // No entry in the JSON = no hitbox = we can walk through
-                const auto found = library.find({tile.texture.col, tile.texture.row});
-                if (found == library.end()) continue;
-
-                for (const Hitbox::Polygon& shape : found->second) {
-                    Hitbox::Polygon polygon;
-                    for (const sf::Vector2f& point : shape.points) {
-                        polygon.points.push_back(toWorld(point, tile, x, y));
-                    }
-                    cell.hitboxes.push_back(polygon);
-                }
-            }
+            buildCellCollision(map, x, y);
         }
     }
 }

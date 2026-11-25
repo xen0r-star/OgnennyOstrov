@@ -14,6 +14,7 @@ struct Rect {
 class MapGenerator {
 public:
     static Map generateMap(int height, int width, unsigned int seed);
+    static void buildCellCollision(Map& map, int x, int y);
 
 private:
     static void initMap(Map& map, int height, int width);

@@ -12,6 +12,8 @@
 #include "core/Settings.h"
 #include "views/MapView.h"
 #include "views/menu/Drawing.h"
+#include "models/map/Tiles.h"
+#include "views/menu/MenuView.h"
 
 #ifdef _WIN32
     #include <Windows.h>
@@ -117,10 +119,14 @@ void Game::processEvents() {
                 break;
 
             case GameState::Playing:
-                if (event.type == sf::Event::KeyPressed &&
-                    event.key.code == sf::Keyboard::Escape) {
-                    state = GameState::Menu;   // back to the menu
-                    resetScreenView();
+                if (event.type == sf::Event::KeyPressed) {
+                    if (event.key.code == sf::Keyboard::Escape) {
+                        state = GameState::Menu;
+                        resetScreenView();
+                    }
+                    else if (event.key.code == sf::Keyboard::E) {
+                        tryOpenDoor();
+                    }
                 }
                 break;
         }
@@ -175,4 +181,55 @@ void Game::render() {
 
     drawBrightnessVeil(window, settings.brightness);
     window.display();
+}
+namespace {
+    constexpr float DOOR_REACH = TILE_STEP * 1.2f;
+
+    bool sameTexture(const GameMap::Tile& a, const GameMap::Tile& b) {
+        return a.texture.col == b.texture.col && a.texture.row == b.texture.row;
+    }
+}
+
+void Game::tryOpenDoor() {
+    const sf::Vector2f pos = prisoner.getPosition();
+
+    const int px = static_cast<int>(std::floor(pos.x / TILE_STEP));
+    const int py = static_cast<int>(std::floor(pos.y / TILE_STEP));
+
+    GameMap::Tile* door = nullptr;
+    int doorX = 0, doorY = 0;
+    float bestDistance = DOOR_REACH * DOOR_REACH;
+
+    for (int y = py - 1; y <= py + 1; ++y) {
+        for (int x = px - 1; x <= px + 1; ++x) {
+            if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
+
+            for (GameMap::Tile& tile : map.cells[y][x].layers) {
+                if (!sameTexture(tile, Tiles::WALL_DOORWAY_CLOSE) &&
+                    !sameTexture(tile, Tiles::WALL_DOORWAY_OPEN)) continue;
+
+                const float dx = static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f - pos.x;
+                const float dy = static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f - pos.y;
+                const float distance = dx * dx + dy * dy;
+
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    door = &tile;
+                    doorX = x;
+                    doorY = y;
+                }
+            }
+        }
+    }
+
+    if (door == nullptr) return;
+
+    if (sameTexture(*door, Tiles::WALL_DOORWAY_OPEN)) {
+        if (doorX == px && doorY == py) return;
+        door->texture = Tiles::WALL_DOORWAY_CLOSE.texture;
+    } else {
+        door->texture = Tiles::WALL_DOORWAY_OPEN.texture;
+    }
+
+    MapGenerator::buildCellCollision(map, doorX, doorY);
 }
