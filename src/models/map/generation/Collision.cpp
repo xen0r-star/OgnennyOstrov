@@ -111,3 +111,11 @@ void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
         }
     }
 }
+
+void MapGenerator::buildCollision(Map& map) {
+    for (int y = 0; y < map.height; ++y) {
+        for (int x = 0; x < map.width; ++x) {
+            buildCellCollision(map, x, y);
+        }
+    }
+}
