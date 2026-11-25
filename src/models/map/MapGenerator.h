@@ -14,6 +14,7 @@ struct Rect {
 class MapGenerator {
 public:
     static Map generateMap(int height, int width, unsigned int seed);
+    static void buildCellCollision(Map& map, int x, int y);
 
 private:
     static void initMap(Map& map, int height, int width);
@@ -24,7 +25,7 @@ private:
     static void addGuardPaths(Map& map, std::mt19937& rng, const Rect& playZone);
     static void addRailPaths(Map& map, std::mt19937& rng, const Rect& playZone);
     static void buildHouseFloors(Map& map, std::mt19937& rng, const Rect& playZone);
-    static void buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZone);
+    static void buildStoneZones(Map& map, std::mt19937& rng, const Rect& playZone);
     static void correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect& playZone);
     static void buildHouseWalls(Map& map, std::mt19937& rng, const Rect& playZone);
     static void addHousePaths(Map& map, std::mt19937& rng, const Rect& playZone);

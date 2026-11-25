@@ -19,7 +19,7 @@ namespace {
     constexpr int TURN_COST       = 2;   // Surcharge per turn
     constexpr int NEAR_HOUSE_COST = 1;   // Surcharge for travelling along a building
     constexpr int NEAR_PATH_COST  = 6;   // Surcharge for travelling along another path
-    constexpr int DIRT_COST       = 3;   // Surcharge for crossing a field
+    constexpr int STONE_ZONE_COST = 3;   // Surcharge for crossing a field
     constexpr int RAIL_COST       = 12;  // Surcharge for crossing a railway track (last resort)
 }
 
@@ -267,7 +267,7 @@ void MapGenerator::correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect
     std::vector<char> pathCell(N, 0);   // Flag indicating cell belongs to guard path
     std::vector<char> blocked(N, 0);    // Impassable obstacles (e.g. house floors)
     std::vector<char> railCell(N, 0);   // Railway track tiles (crossable only as a last resort)
-    std::vector<char> dirt(N, 0);       // Dirt/farm field tiles
+    std::vector<char> stoneZone(N, 0);  // Stone field tiles
     std::vector<char> changed(N, 0);    // Mark tiles flagged for re-rendering
 
     for (int y = playZone.y; y < playZone.y + H; ++y) {
@@ -275,7 +275,7 @@ void MapGenerator::correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect
             const int i = idx(x, y);
             for (const GameMap::Tile& t : map.cells[y][x].layers) {
                 if (t.zIndex == GameMap::ZIndex::Layer1) cur[i] |= guardMask(t);
-                if (t.zIndex == GameMap::ZIndex::Layer0 && sameTex(t.texture, Tiles::GROUND_DIRT.texture)) dirt[i] = 1;
+                if (t.zIndex == GameMap::ZIndex::Layer0 && sameTex(t.texture, Tiles::FLOOR_STONE_PLAIN.texture)) stoneZone[i] = 1;
             }
             if (cur[i] != 0) pathCell[i] = 1;
             else if (!isTileEmpty(map, x, y, GameMap::ZIndex::Layer1)) blocked[i] = 1;
@@ -475,7 +475,7 @@ void MapGenerator::correctionsGuardPaths(Map& map, std::mt19937& rng, const Rect
                                 if (!allowRail || onRail || !canCrossRail(nx, ny, nd)) continue;
                                 step += RAIL_COST;
                             }
-                            if (dirt[ni])               step += DIRT_COST;
+                            if (stoneZone[ni])               step += STONE_ZONE_COST;
                             if (nearHouse[ni])          step += NEAR_HOUSE_COST;
                             if (touchesPath(nx, ny))    step += NEAR_PATH_COST;
                         }
