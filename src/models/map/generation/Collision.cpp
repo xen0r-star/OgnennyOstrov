@@ -73,14 +73,13 @@ namespace {
             static_cast<float>(cellY * TILE_STEP) + half + offsetY + rotatedY
         };
     }
-}
 
-namespace {
     const HitboxLibrary& hitboxLibrary() {
         static const HitboxLibrary library = loadHitboxes();
         return library;
     }
 }
+
 
 void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
     MapCell& cell = map.cells[y][x];
