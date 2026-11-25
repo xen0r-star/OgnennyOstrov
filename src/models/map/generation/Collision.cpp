@@ -10,6 +10,8 @@
 #include <utility>
 
 namespace {
+    constexpr float BUSH_HIDE_RATIO = 0.8f; // Hiding circle radius
+
     using json = nlohmann::json;
 
     // (col, row) of a tile in map.png -> its hitbox shapes, with points between 0 and 1
@@ -83,7 +85,11 @@ void MapGenerator::buildCollision(Map& map) {
             for (const GameMap::Tile& tile : cell.layers) {
                 // A bush doesn't block, it only hides the player
                 if (isTile(tile, Tiles::PROP_BUSH)) {
-                    cell.hides = true;
+                    cell.hideZones.push_back({
+                        .x = static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetX,
+                        .y = static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetY,
+                        .radius = TILE_SIZE / 2.f * tile.modifier.scale * BUSH_HIDE_RATIO
+                    });
                     continue;
                 }
 
