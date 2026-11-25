@@ -46,6 +46,12 @@ namespace GameMap {
         }
     };
 
+    struct HideZone {
+        float x = 0.f;
+        float y = 0.f;
+        float radius = 0.f;
+    };
+
     enum class HouseRole { Mess, Storage, Dorm };
 
     struct HouseInfo {
@@ -60,8 +66,8 @@ namespace GameMap {
 struct MapCell {
     std::vector<GameMap::Tile> layers;
 
-    std::vector<Hitbox::Polygon> hitboxes;   // shapes that block movement (in pixels, world coordinates)
-    bool hides = false;                      // bush
+    std::vector<Hitbox::Polygon> hitboxes;    // shapes that block movement (in pixels, world coordinates)
+    std::vector<GameMap::HideZone> hideZones; // bushes: the player is hidden inside these circles
 };
 
 struct Map {

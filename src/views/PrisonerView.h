@@ -10,7 +10,7 @@ public:
     PrisonerView();
 
     void reset(sf::Vector2f position);
-    void update(sf::Time dt, const Prisoner& prisoner);
+    void update(sf::Time dt, const Prisoner& prisoner, bool hidden);
     void draw(sf::RenderWindow& window, const Prisoner& prisoner, int character) const;
 
 private:
@@ -20,6 +20,7 @@ private:
     float moveAmount = 0.f;
     float walkPhase = 0.f;
     float idleTime = 0.f;
+    float hideAmount = 0.f;
 };
 
 

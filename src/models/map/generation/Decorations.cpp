@@ -25,6 +25,7 @@ namespace {
         float scaleMin = 1.f;
         float scaleMax = 1.f;
         bool big = false;
+        int layer = GameMap::ZIndex::Layer1;
     };
 
     constexpr Style CAMPFIRE {
@@ -32,7 +33,8 @@ namespace {
         .offset = 6.f,
         .scaleMin = 0.9f,
         .scaleMax = 1.1f,
-        .big = true
+        .big = true,
+        .layer = GameMap::ZIndex::Layer1
     };
 
     constexpr Style TREE {
@@ -40,7 +42,8 @@ namespace {
         .offset = 12.f,
         .scaleMin = 1.5f,
         .scaleMax = 2.0f,
-        .big = true
+        .big = true,
+        .layer = GameMap::ZIndex::Layer2
     };
 
     constexpr Style BUSH {
@@ -48,7 +51,8 @@ namespace {
         .offset = 16.f,
         .scaleMin = 0.8f,
         .scaleMax = 1.3f,
-        .big = false
+        .big = false,
+        .layer = GameMap::ZIndex::Layer1
     };
 
     constexpr Style TUFT {
@@ -56,7 +60,8 @@ namespace {
         .offset = 20.f,
         .scaleMin = 0.7f,
         .scaleMax = 1.2f,
-        .big = false
+        .big = false,
+        .layer = GameMap::ZIndex::Layer1
     };
 }
 
@@ -113,7 +118,7 @@ void MapGenerator::addDecorations(Map& map, std::mt19937& rng, const Rect& playZ
         tile.modifier.offsetX  = unit(rng) * style.offset;
         tile.modifier.offsetY  = unit(rng) * style.offset;
         tile.modifier.scale    = style.scaleMin + unit01(rng) * (style.scaleMax - style.scaleMin);
-        addTile(map, x, y, tile, GameMap::ZIndex::Layer1);
+        addTile(map, x, y, tile, style.layer);
         if (style.big) big[idx(x, y)] = 1;
     };
 
