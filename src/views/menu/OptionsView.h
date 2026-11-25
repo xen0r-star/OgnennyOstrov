@@ -10,7 +10,7 @@ public:
     OptionsView();
 
     void handleEvent(const sf::Event& event, const sf::RenderWindow& window, Settings& settings);
-    void draw(sf::RenderWindow& window, const sf::Font& font, const Settings& settings);
+    void draw(sf::RenderWindow& window, const sf::Font& font, const Settings& settings, bool overGame = false);
 
     bool back = false; // becomes true when "Retour" is clicked
 

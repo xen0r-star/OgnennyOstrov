@@ -8,6 +8,7 @@
 #include "views/MapView.h"
 #include "views/menu/MenuView.h"
 #include "views/menu/OptionsView.h"
+#include "views/menu/PauseView.h"
 #include "views/PrisonerView.h"
 #include "views/FogView.h"
 
@@ -18,6 +19,7 @@ enum class GameState {
     Menu,
     Options,
     Playing,
+    Paused
 };
 
 class Game {
@@ -30,9 +32,11 @@ private:
     void processEvents();
     void update(sf::Time deltaTime);
     void render();
+    void drawWorld();
 
     void startGame();
     void resetScreenView();
+    void openPause();
 
     void updateCamera();
     void followPlayer(sf::Time dt, bool snap);
@@ -47,6 +51,12 @@ private:
     Settings settings;
     MenuView menu;
     OptionsView options;
+    PauseView pause;
+    bool optionsFromPause = false;
+
+    sf::Cursor arrowCursor;
+    sf::Cursor handCursor;
+    bool handCursorShown = false;
 
     // Game data
     Map map;
