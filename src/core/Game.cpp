@@ -31,6 +31,9 @@ Game::Game() {
 
     window.setVerticalSyncEnabled(true);
 
+    if (!arrowCursor.loadFromSystem(sf::Cursor::Arrow)) std::cerr << "Cannot load the arrow cursor" << std::endl;
+    if (!handCursor.loadFromSystem(sf::Cursor::Hand))   std::cerr << "Cannot load the hand cursor" << std::endl;
+
     if (!font.loadFromFile("assets/fonts/LilitaOne-Regular.ttf")) {
         std::cerr << "Cannot load assets/fonts/LilitaOne-Regular.ttf" << std::endl;
         window.close();
@@ -38,6 +41,8 @@ Game::Game() {
 }
 
 void Game::startGame() {
+    optionsFromPause = false;
+
     const int seed = static_cast<int>(std::time(nullptr));
     map = MapGenerator::generateMap(65, 65, seed);
 
@@ -89,6 +94,12 @@ void Game::run() {
     }
 }
 
+void Game::openPause() {
+    state = GameState::Paused;
+    pause.reset();
+    resetScreenView();
+}
+
 void Game::processEvents() {
     if (state != GameState::Playing) resetScreenView();
 
@@ -101,6 +112,11 @@ void Game::processEvents() {
 
         if (event.type == sf::Event::Resized) {
             updateCamera();
+        }
+
+        if (event.type == sf::Event::LostFocus && state == GameState::Playing) {
+            openPause();
+            continue;
         }
 
         switch (state) {
@@ -121,12 +137,29 @@ void Game::processEvents() {
             case GameState::Playing:
                 if (event.type == sf::Event::KeyPressed) {
                     if (event.key.code == sf::Keyboard::Escape) {
-                        state = GameState::Menu;
-                        resetScreenView();
+                        openPause();
                     }
                     else if (event.key.code == sf::Keyboard::E) {
                         tryOpenDoor();
                     }
+                }
+                break;
+
+            case GameState::Paused:
+                switch (pause.handleEvent(event, window)) {
+                    case PauseAction::Resume:
+                        state = GameState::Playing;
+                        break;
+                    case PauseAction::Options:
+                        optionsFromPause = true;
+                        state = GameState::Options;
+                        break;
+                    case PauseAction::Quit:
+                        state = GameState::Menu;
+                        resetScreenView();
+                        break;
+                    case PauseAction::None:
+                        break;
                 }
                 break;
         }
@@ -136,7 +169,8 @@ void Game::processEvents() {
 void Game::update(sf::Time deltaTime) {
     if (state == GameState::Options && options.back) {
         options.back = false;
-        state = GameState::Menu;
+        state = optionsFromPause ? GameState::Paused : GameState::Menu;
+        optionsFromPause = false;
     }
 
     if (state == GameState::Playing) {
@@ -155,6 +189,15 @@ void Game::resetScreenView() {
     window.setView(sf::View(sf::FloatRect(0.f, 0.f, size.x / scale, size.y / scale)));
 }
 
+void Game::drawWorld() {
+    window.setView(camera);
+
+    mapView.drawGround(window, map);
+    prisonerView.draw(window, prisoner, settings.character);
+    mapView.drawOverlay(window, map);
+    fogView.draw(window, prisoner.getPosition());
+}
+
 void Game::render() {
     window.clear(sf::Color(30, 30, 30));
 
@@ -165,21 +208,36 @@ void Game::render() {
             break;
 
         case GameState::Playing:
-            window.setView(camera);
+            drawWorld();
+            break;
 
-            mapView.drawGround(window, map);
-            prisonerView.draw(window, prisoner, settings.character);
-            mapView.drawOverlay(window, map);
-            fogView.draw(window, prisoner.getPosition());
+        case GameState::Paused:
+            drawWorld();
+            resetScreenView(); // The pause menu is laid out like the other menus
+            pause.draw(window, font);
             break;
 
         case GameState::Options:
-            resetScreenView();
-            options.draw(window, font, settings);
+            if (optionsFromPause) {
+                drawWorld();
+                resetScreenView();
+                options.draw(window, font, settings, true);
+            } else {
+                resetScreenView();
+                options.draw(window, font, settings);
+            }
             break;
     }
 
     drawBrightnessVeil(window, settings.brightness);
+
+    // Hand cursor while the mouse is over a button
+    if (buttonHovered != handCursorShown) {
+        handCursorShown = buttonHovered;
+        window.setMouseCursor(handCursorShown ? handCursor : arrowCursor);
+    }
+    buttonHovered = false;
+
     window.display();
 }
 namespace {

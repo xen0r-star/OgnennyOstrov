@@ -47,12 +47,19 @@ inline void drawText(
     window.draw(text);
 }
 
+// Becomes true when the mouse is over a button drawn this frame (Game reads it to show the hand cursor)
+inline bool buttonHovered = false;
+
 // Wooden button with a shadow and a label
 inline void drawButton(
     sf::RenderWindow& window,
     const sf::Font& font, const sf::FloatRect area,
     const std::string& message, const bool hovered = false
 ) {
+    if (area.contains(window.mapPixelToCoords(sf::Mouse::getPosition(window)))) {
+        buttonHovered = true;
+    }
+
     drawRectangle(window, area.left, area.top + 5, area.width, area.height, WOOD_DARK);
     drawRectangle(window, area.left, area.top, area.width, area.height, INK);
     drawRectangle(window, area.left + 3, area.top + 3, area.width - 6, area.height - 6,
@@ -85,13 +92,9 @@ inline sf::Vector2f mouseToView(const sf::RenderWindow& window, const int x, con
     return window.mapPixelToCoords(sf::Vector2i(x, y));
 }
 
-// Background shared by the menus: grass + stone room surrounded by a wall
-inline void drawBackground(sf::RenderWindow& window) {
-    const sf::Vector2f size = window.getView().getSize();
+// Stone room surrounded by a wall (the panel of the menus)
+inline void drawPanel(sf::RenderWindow& window) {
     const sf::Vector2f c = windowCenter(window);
-
-    window.clear(GRASS);
-    drawGrid(window, 0, 0, size.x, size.y, GRASS_LINE);
 
     const float x = c.x - 252;
     const float y = c.y - 322;
@@ -100,6 +103,22 @@ inline void drawBackground(sf::RenderWindow& window) {
     drawRectangle(window, x + 19, y + 19, 466, 606, INK);
     drawRectangle(window, x + 22, y + 22, 460, 600, STONE);
     drawGrid(window, x + 22, y + 22, 460, 600, STONE_LINE);
+}
+
+// Darkens everything already drawn (used to show a menu over the game)
+inline void drawDim(sf::RenderWindow& window) {
+    const sf::Vector2f size = window.getView().getSize();
+    const sf::Vector2f c = windowCenter(window);
+    drawRectangle(window, c.x - size.x / 2, c.y - size.y / 2, size.x, size.y, sf::Color(0, 0, 0, 140));
+}
+
+// Background shared by the menus: grass + panel
+inline void drawBackground(sf::RenderWindow& window) {
+    const sf::Vector2f size = window.getView().getSize();
+
+    window.clear(GRASS);
+    drawGrid(window, 0, 0, size.x, size.y, GRASS_LINE);
+    drawPanel(window);
 }
 
 inline void drawBrightnessVeil(sf::RenderWindow& window, const int brightness) {

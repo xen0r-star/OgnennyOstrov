@@ -44,10 +44,16 @@ void OptionsView::handleEvent(const sf::Event& event, const sf::RenderWindow& wi
     if (backButton(c).contains(x, y))         back = true;
 }
 
-void OptionsView::draw(sf::RenderWindow& window, const sf::Font& font, const Settings& settings) {
+void OptionsView::draw(sf::RenderWindow& window, const sf::Font& font, const Settings& settings, const bool overGame) {
     const sf::Vector2f c = windowCenter(window);
 
-    drawBackground(window);
+    if (overGame) {
+        drawDim(window);   // The game is already drawn behind
+        drawPanel(window);
+    } else {
+        drawBackground(window);
+    }
+
     drawText(window, font, "Options", 46, c.x, c.y - 255, WALL_LIGHT, 3);
 
     // Brightness
