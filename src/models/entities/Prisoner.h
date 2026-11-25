@@ -21,6 +21,7 @@ public:
 
     [[nodiscard]] const sf::Vector2f& getPosition() const;
     [[nodiscard]] const sf::Vector2f& getAimDirection() const;
+    [[nodiscard]] bool isHidden(const Map& map) const;
 
 private:
     static constexpr float HITBOX_RADIUS = 30.f; // 60 px

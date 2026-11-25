@@ -36,6 +36,8 @@ void MapGenerator::buildHouseFloors(Map& map, std::mt19937& rng, const Rect& pla
     enum Role { MESS = 0, STORAGE = 1, DORM = 2 };
     enum Cell { PATH = 1, RAIL = 2, HOUSE = 4 };
 
+    map.houses.clear();
+
     // ---------- 1. Camp Zone Definition ----------
     // Randomly select rectangle bounds inside play zone margins.
     int areaW = playZone.w - 2 * EDGE_MARGIN;
@@ -211,6 +213,12 @@ void MapGenerator::buildHouseFloors(Map& map, std::mt19937& rng, const Rect& pla
         const int w = houseW[k];
         const int h = houseH[k];
         const bool isMess = (houseRole[k] == MESS);
+
+        map.houses.push_back({
+            .x = x, .y = y,
+            .w = w, .h = h,
+            .role = static_cast<GameMap::HouseRole>(houseRole[k])
+        });
 
         for (int yy = y; yy < y + h; ++yy) {
             for (int xx = x; xx < x + w; ++xx) {

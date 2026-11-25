@@ -10,6 +10,8 @@
 #include <utility>
 
 namespace {
+    constexpr float BUSH_HIDE_RATIO = 0.8f; // Hiding circle radius
+
     using json = nlohmann::json;
 
     // (col, row) of a tile in map.png -> its hitbox shapes, with points between 0 and 1
@@ -83,13 +85,18 @@ namespace {
 void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
     MapCell& cell = map.cells[y][x];
     cell.hitboxes.clear();
-    cell.hides = false;
+    cell.hideZones.clear(); // Pense à vider hideZones comme hitboxes (vérifie le nom exact dans MapCell)
 
     const HitboxLibrary& library = hitboxLibrary();
 
     for (const GameMap::Tile& tile : cell.layers) {
+        // A bush doesn't block, it only hides the player
         if (isTile(tile, Tiles::PROP_BUSH)) {
-            cell.hides = true;
+            cell.hideZones.push_back({
+                .x = static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetX,
+                .y = static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetY,
+                .radius = TILE_SIZE / 2.f * tile.modifier.scale * BUSH_HIDE_RATIO
+            });
             continue;
         }
 
@@ -102,14 +109,6 @@ void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
                 polygon.points.push_back(toWorld(point, tile, x, y));
             }
             cell.hitboxes.push_back(polygon);
-        }
-    }
-}
-
-void MapGenerator::buildCollision(Map& map) {
-    for (int y = 0; y < map.height; ++y) {
-        for (int x = 0; x < map.width; ++x) {
-            buildCellCollision(map, x, y);
         }
     }
 }

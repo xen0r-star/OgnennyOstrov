@@ -143,7 +143,7 @@ void Game::update(sf::Time deltaTime) {
         playerController.update(prisoner, window, camera);
         prisoner.update(deltaTime, map);
         followPlayer(deltaTime, false); // Smoothly follow the player
-        prisonerView.update(deltaTime, prisoner);
+        prisonerView.update(deltaTime, prisoner, prisoner.isHidden(map));
     }
 }
 
@@ -167,8 +167,9 @@ void Game::render() {
         case GameState::Playing:
             window.setView(camera);
 
-            mapView.drawMap(window, map);
+            mapView.drawGround(window, map);
             prisonerView.draw(window, prisoner, settings.character);
+            mapView.drawOverlay(window, map);
             fogView.draw(window, prisoner.getPosition());
             break;
 

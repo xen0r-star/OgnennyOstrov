@@ -6,12 +6,12 @@
 #include <vector>
 
 namespace {
-    constexpr int CLEARANCE   = 1;   // Space between a dirt zone and a path / building / railway track
-    constexpr int FIELD_GAP   = 1;   // Space between two dirt zone
-    constexpr int EDGE_MARGIN = 1;   // Space between a dirt zone and the border map
+    constexpr int CLEARANCE   = 1;   // Space between a stone zone and a path / building / railway track
+    constexpr int FIELD_GAP   = 1;   // Space between two stone zones
+    constexpr int EDGE_MARGIN = 1;   // Space between a stone zone and the border map
     constexpr int BIG_PERCENT = 100; // Probability to make the change as large as possible
 
-    // Possible sizes of dirt zones
+    // Possible sizes of stone zones
     struct Size { int w, h; };
     constexpr Size SIZES[] = {
         { .w = 10, .h = 8 },
@@ -23,7 +23,7 @@ namespace {
     };
 }
 
-void MapGenerator::buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZone) {
+void MapGenerator::buildStoneZones(Map& map, std::mt19937& rng, const Rect& playZone) {
     constexpr int sizeCount = std::size(SIZES);
 
     // ---------- 1. Occupied tiles ----------
@@ -43,7 +43,7 @@ void MapGenerator::buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZ
         }
     }
 
-    // blocked[]: Area off-limits on the course (obstacle + surrounding path + edge + area of dirt already laid)
+    // blocked[]: Area off-limits on the course (obstacle + surrounding path + edge + area of stone zones already laid)
     std::vector<char> blocked(W * H, 0);
     for (int y = playZone.y; y < playZone.y + H; ++y) {
         for (int x = playZone.x; x < playZone.x + W; ++x) {
@@ -67,7 +67,7 @@ void MapGenerator::buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZ
         }
     }
 
-    // Is the entire dirt zone free?
+    // Is the entire stone zone free?
     auto canPlace = [&](const int x, const int y, const int w, const int h) {
         if (x + w > playZone.x + W || y + h > playZone.y + H) return false;
         for (int yy = y; yy < y + h; ++yy) {
@@ -78,7 +78,7 @@ void MapGenerator::buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZ
         return true;
     };
 
-    // ---------- 2. Dirt zone placement ----------
+    // ---------- 2. Stone zone placement ----------
     for (int y = playZone.y; y < playZone.y + H; ++y) {
         for (int x = playZone.x; x < playZone.x + W; ++x) {
             if (blocked[idx(x, y)]) continue;
@@ -103,10 +103,10 @@ void MapGenerator::buildDirtZones(Map& map, std::mt19937& rng, const Rect& playZ
             std::uniform_int_distribution pick(0, poolCount - 1);
             const auto [w, h] = pool[pick(rng)];
 
-            // Place the dirt tiles (Layer0: replaces grass)
+            // Place the stone zone tiles (Layer0: replaces grass)
             for (int yy = y; yy < y + h; ++yy) {
                 for (int xx = x; xx < x + w; ++xx) {
-                    addTile(map, xx, yy, Tiles::GROUND_DIRT, GameMap::ZIndex::Layer0);
+                    addTile(map, xx, yy, Tiles::FLOOR_STONE_PLAIN, GameMap::ZIndex::Layer0);
                 }
             }
 
