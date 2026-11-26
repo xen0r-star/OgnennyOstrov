@@ -1,5 +1,5 @@
 #include "PrisonerView.h"
-
+#include "views/Weapons.h"
 #include "core/Config.h"
 #include "SFML/Graphics/Sprite.hpp"
 #include <algorithm>
@@ -18,6 +18,9 @@ namespace {
     constexpr float HAND_FORWARD = 32.f;                    // Hand position when idle
     constexpr float HAND_SWING = 0.f;                       // Hand swing amplitude
 
+    constexpr int WEAPON_CELL = 72;                             // Size of one cell in weapons_grid.png
+    constexpr float WEAPON_DRAW_SIZE = PLAYER_DRAW_SIZE * 0.9f; // Weapon size on screen
+
     constexpr float HIDDEN_ALPHA = 110.f;  // Player opacity in a bush (0-255)
     constexpr float HIDE_SPEED   = 10.f;   // Fade speed
 }
@@ -28,6 +31,10 @@ PrisonerView::PrisonerView() {
     }
 
     texture.setSmooth(true);
+    if (!weaponTexture.loadFromFile("assets/textures/weapons.png")) {
+        std::cerr << "Could not load assets/textures/weapons.png" << std::endl;
+    }
+    weaponTexture.setSmooth(true);
 }
 
 void PrisonerView::reset(const sf::Vector2f position) {
@@ -78,10 +85,14 @@ void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int 
 
         const sf::Vector2f center(pos.x, pos.y - bounce * 3.f + breath * 1.5f);
 
-        hand.setPosition(center - side * HAND_SIDE + aim * (HAND_FORWARD + swing * HAND_SWING));
+        const sf::Vector2f leftHand  = center - side * HAND_SIDE + aim * (HAND_FORWARD + swing * HAND_SWING);
+        const sf::Vector2f rightHand = center + side * HAND_SIDE + aim * (HAND_FORWARD - swing * HAND_SWING);
+
+        drawWeapon(window, prisoner.getWeapon(), rightHand, aim);   // l'arme d'abord...
+        hand.setPosition(leftHand);
         window.draw(hand);
-        hand.setPosition(center + side * HAND_SIDE + aim * (HAND_FORWARD - swing * HAND_SWING));
-        window.draw(hand);
+        hand.setPosition(rightHand);
+        window.draw(hand);                                          // ...puis la main par-dessus
     }
 
     // Body
@@ -95,4 +106,24 @@ void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int 
         body.setPosition(pos.x, pos.y - bounce * 3.f);
         window.draw(body);
     }
+}
+
+void PrisonerView::drawWeapon(sf::RenderWindow& window, const int weapon,
+                              const sf::Vector2f handPos, const sf::Vector2f aim) const {
+    if (weapon < 0 || weapon >= Weapons::COUNT) return;   // mains nues
+
+    const Weapons::Sprite& s = Weapons::SPRITES[weapon];
+
+    sf::Sprite sprite(weaponTexture, sf::IntRect(s.col * WEAPON_CELL, s.row * WEAPON_CELL,
+                                                 WEAPON_CELL, WEAPON_CELL));
+    sprite.setOrigin(WEAPON_CELL / 2.f, WEAPON_CELL * s.gripY);
+
+    constexpr float scale = WEAPON_DRAW_SIZE / WEAPON_CELL;
+    sprite.setScale(scale, scale);
+
+    constexpr float radToDeg = 180.f / 3.14159265f;
+    sprite.setRotation(std::atan2(aim.y, aim.x) * radToDeg + 90.f);
+
+    sprite.setPosition(handPos);
+    window.draw(sprite);
 }

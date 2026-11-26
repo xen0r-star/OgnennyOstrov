@@ -6,7 +6,7 @@
 #include <ctime>
 #include <cmath>
 #include <algorithm>
-
+#include "views/Weapons.h"
 #include "../models/map/MapGenerator.h"
 #include "Config.h"
 #include "core/Settings.h"
@@ -55,6 +55,7 @@ void Game::startGame() {
     updateCamera();
     followPlayer(sf::Time::Zero, true); // Snap the camera to the player position at the start of the game
     prisonerView.reset(prisoner.getPosition());
+    prisoner.setWeapon(Weapons::LONG_SWORD);
     state = GameState::Playing;
 }
 
@@ -141,6 +142,9 @@ void Game::processEvents() {
                     }
                     else if (event.key.code == sf::Keyboard::E) {
                         tryOpenDoor();
+                    }
+                    else if (event.key.code == sf::Keyboard::Tab) {
+                        prisoner.setWeapon((prisoner.getWeapon() + 1) % Weapons::COUNT);
                     }
                 }
                 break;
@@ -240,6 +244,7 @@ void Game::render() {
 
     window.display();
 }
+
 namespace {
     constexpr float DOOR_REACH = TILE_STEP * 1.2f;
 

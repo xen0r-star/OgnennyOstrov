@@ -18,6 +18,8 @@ public:
     void setAimDirection(sf::Vector2f newAimDirection);
     void update(sf::Time dt, const Map& map);
     bool moveToNearestFreeSpot(sf::Vector2f target, const Map& map);
+    int getWeapon() const { return weapon; }
+    void setWeapon(const int w) { weapon = w; }
 
     [[nodiscard]] const sf::Vector2f& getPosition() const;
     [[nodiscard]] const sf::Vector2f& getAimDirection() const;
@@ -37,6 +39,8 @@ private:
     sf::Vector2f direction{0.f, 0.f};
     sf::Vector2f aimDirection{0.f, 1.f};
     float speed = 400.f;
+    int weapon = -1;   // -1 = mains nues
+    int health = 100;
 };
 
 #endif // OGNENNYOSTROV_PRISONER_H

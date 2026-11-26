@@ -10,8 +10,6 @@
 #include <utility>
 
 namespace {
-    constexpr float BUSH_HIDE_RATIO = 0.8f; // Hiding circle radius
-
     using json = nlohmann::json;
 
     // (col, row) of a tile in map.png -> its hitbox shapes, with points between 0 and 1
@@ -19,6 +17,8 @@ namespace {
 
     constexpr auto HITBOX_FILE = "assets/hitboxes/tiles.json";
     constexpr float PI = 3.14159265f;
+
+    constexpr float BUSH_HIDE_RADIUS = TILE_SIZE * 0.4f;
 
     bool isTile(const GameMap::Tile& a, const GameMap::Tile& b) {
         return a.texture.col == b.texture.col && a.texture.row == b.texture.row;
@@ -73,29 +73,19 @@ namespace {
             static_cast<float>(cellY * TILE_STEP) + half + offsetY + rotatedY
         };
     }
-
-    const HitboxLibrary& hitboxLibrary() {
-        static const HitboxLibrary library = loadHitboxes();
-        return library;
-    }
 }
 
-
 void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
+    static const HitboxLibrary library = loadHitboxes();
+
     MapCell& cell = map.cells[y][x];
     cell.hitboxes.clear();
-    cell.hideZones.clear(); // Pense à vider hideZones comme hitboxes (vérifie le nom exact dans MapCell)
-
-    const HitboxLibrary& library = hitboxLibrary();
+    cell.hideZones.clear();
 
     for (const GameMap::Tile& tile : cell.layers) {
-        // A bush doesn't block, it only hides the player
         if (isTile(tile, Tiles::PROP_BUSH)) {
-            cell.hideZones.push_back({
-                .x = static_cast<float>(x * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetX,
-                .y = static_cast<float>(y * TILE_STEP) + TILE_SIZE / 2.f + tile.modifier.offsetY,
-                .radius = TILE_SIZE / 2.f * tile.modifier.scale * BUSH_HIDE_RATIO
-            });
+            const sf::Vector2f center = toWorld({0.5f, 0.5f}, tile, x, y);
+            cell.hideZones.push_back({center.x, center.y, BUSH_HIDE_RADIUS * tile.modifier.scale});
             continue;
         }
 
