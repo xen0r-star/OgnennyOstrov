@@ -10,7 +10,8 @@
 #include "views/menu/OptionsView.h"
 #include "views/PrisonerView.h"
 #include "views/FogView.h"
-
+#include "models/entities/Bot.h"
+#include <vector>
 #include "controllers/client/PlayerController.h"
 #include "models/entities/Prisoner.h"
 
@@ -57,6 +58,8 @@ private:
     PrisonerView prisonerView;
     FogView fogView;
     PlayerController playerController;
+    std::vector<Bot> bots;
+    std::vector<PrisonerView> botViews;   // une vue par bot (chacun a sa propre animation)
 };
 
 #endif // GAME_H

@@ -4,10 +4,11 @@
 #include "models/entities/Prisoner.h"
 #include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Texture.hpp"
+#include <string>
 
 class PrisonerView {
 public:
-    PrisonerView();
+    explicit PrisonerView(const std::string& texturePath = "assets/textures/player.png");
 
     void reset(sf::Vector2f position);
     void update(sf::Time dt, const Prisoner& prisoner);

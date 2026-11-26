@@ -18,7 +18,25 @@
 #ifdef _WIN32
     #include <Windows.h>
 #endif
+namespace {
+    constexpr int BOT_COUNT = 3;
+    constexpr int BOT_DAMAGE = 10;
 
+    // Empêche deux personnages de se chevaucher : on les écarte l'un de l'autre
+    void separate(Prisoner& a, Prisoner& b, const Map& map) {
+        const sf::Vector2f d = b.getPosition() - a.getPosition();
+        const float distance = std::sqrt(d.x * d.x + d.y * d.y);
+        const float minDistance = Prisoner::getRadius() * 2.f;
+        if (distance >= minDistance) return;   // ils ne se touchent pas
+
+        const sf::Vector2f normal = distance > 0.001f ? d / distance : sf::Vector2f(1.f, 0.f);
+        const float overlap = minDistance - distance;
+
+        const sf::Vector2f moved = a.pushBy(-normal * (overlap / 2.f), map);
+        const float movedLength = std::sqrt(moved.x * moved.x + moved.y * moved.y);
+        b.pushBy(normal * (overlap - movedLength), map);
+    }
+}
 Game::~Game() = default;
 
 Game::Game() {
@@ -41,10 +59,31 @@ void Game::startGame() {
     const int seed = static_cast<int>(std::time(nullptr));
     map = MapGenerator::generateMap(65, 65, seed);
 
+    prisoner = Prisoner({0.f, 0.f});   // nouveau prisonnier : vie pleine
+
     const sf::Vector2f mapCenter(static_cast<float>(map.width * TILE_STEP) / 2.f,
                                  static_cast<float>(map.height * TILE_STEP) / 2.f);
     if (!prisoner.moveToNearestFreeSpot(mapCenter, map)) {
         std::cerr << "No free spot found to spawn the prisoner" << std::endl;
+    }
+
+    // Les bots apparaissent en cercle, à 12 cases du joueur
+    bots.clear();
+    botViews.clear();
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<float> randomAngle(0.f, 6.2832f);
+
+    for (int i = 0; i < BOT_COUNT; ++i) {
+        Bot bot(static_cast<unsigned int>(seed) + i + 1);
+        const float angle = randomAngle(rng);
+        const sf::Vector2f spot = mapCenter + sf::Vector2f(std::cos(angle), std::sin(angle)) * (5.f * TILE_STEP);
+
+        bot.getBody().moveToNearestFreeSpot(spot, map);
+        bot.getBody().setWeapon(Weapons::AXE);
+        bots.push_back(bot);
+
+        botViews.emplace_back("assets/textures/bot.png");
+        botViews.back().reset(bot.getBody().getPosition());
     }
 
     updateCamera();
@@ -146,8 +185,32 @@ void Game::update(sf::Time deltaTime) {
     if (state == GameState::Playing) {
         playerController.update(prisoner, window, camera);
         prisoner.update(deltaTime, map);
+
+        // Les bots réfléchissent et bougent
+        for (Bot& bot : bots) {
+            bot.update(deltaTime, prisoner, map);
+            if (bot.hasHit) prisoner.takeDamage(BOT_DAMAGE);
+        }
+
+        // Collisions entre personnages : joueur <-> bots, puis bots <-> bots
+        for (std::size_t i = 0; i < bots.size(); ++i) {
+            separate(prisoner, bots[i].getBody(), map);
+            for (std::size_t j = i + 1; j < bots.size(); ++j) {
+                separate(bots[i].getBody(), bots[j].getBody(), map);
+            }
+        }
+
+        if (prisoner.isDead()) {   // mort : retour au menu
+            state = GameState::Menu;
+            resetScreenView();
+            return;
+        }
+
         followPlayer(deltaTime, false); // Smoothly follow the player
         prisonerView.update(deltaTime, prisoner);
+        for (std::size_t i = 0; i < bots.size(); ++i) {
+            botViews[i].update(deltaTime, bots[i].getBody());
+        }
     }
 }
 
@@ -172,6 +235,9 @@ void Game::render() {
             window.setView(camera);
 
             mapView.drawMap(window, map);
+            for (std::size_t i = 0; i < bots.size(); ++i) {
+                botViews[i].draw(window, bots[i].getBody(), 0);
+            }
             prisonerView.draw(window, prisoner, settings.character);
             fogView.draw(window, prisoner.getPosition());
             break;

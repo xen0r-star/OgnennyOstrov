@@ -43,8 +43,24 @@ void Prisoner::update(const sf::Time dt, const Map& map) {
         position.y = next.y;
     }
 }
+// Moves the prisoner by "offset" without entering a wall. Returns how much he really moved.
+sf::Vector2f Prisoner::pushBy(const sf::Vector2f offset, const Map& map) {
+    const sf::Vector2f start = position;
 
+    sf::Vector2f next = position;
+    next.x += offset.x;
+    if (canStandAt(next, map)) position.x = next.x;
 
+    next = position;
+    next.y += offset.y;
+    if (canStandAt(next, map)) position.y = next.y;
+
+    return position - start;
+}
+
+void Prisoner::takeDamage(const int amount) {
+    health = std::max(0, health - amount);
+}
 bool Prisoner::canStandAt(const sf::Vector2f pos, const Map& map) {
     // Outside of the map: forbidden
     if (pos.x - HITBOX_RADIUS < 0.f || pos.y - HITBOX_RADIUS < 0.f ||

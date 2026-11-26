@@ -37,7 +37,10 @@ file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS
 list(APPEND SERVER_SOURCES "${SRC}/core/GameServer.cpp")
 
 # ---------- Client ----------
-add_executable(OgnennyOstrov ${SRC}/main.cpp ${SHARED_SOURCES} ${CLIENT_SOURCES})
+add_executable(OgnennyOstrov ${SRC}/main.cpp ${SHARED_SOURCES} ${CLIENT_SOURCES}
+        src/views/Weapons.h
+        src/models/entities/Bot.h
+        src/models/entities/Bot.cpp)
 target_include_directories(OgnennyOstrov PRIVATE ${SRC} ${JSON_DIR})
 target_link_libraries(OgnennyOstrov PRIVATE sfml-system sfml-network sfml-audio sfml-graphics sfml-window)
 

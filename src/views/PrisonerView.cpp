@@ -21,9 +21,9 @@ namespace {
     constexpr float WEAPON_DRAW_SIZE = PLAYER_DRAW_SIZE * 0.9f; // taille de l'arme à l'écran
 }
 
-PrisonerView::PrisonerView() {
-    if (!texture.loadFromFile("assets/textures/player.png")) {
-        std::cerr << "Could not load assets/textures/player.png" << std::endl;
+PrisonerView::PrisonerView(const std::string& texturePath) {
+    if (!texture.loadFromFile(texturePath)) {
+        std::cerr << "Could not load " << texturePath << std::endl;
     }
 
     texture.setSmooth(true);

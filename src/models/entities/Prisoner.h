@@ -24,10 +24,18 @@ public:
     [[nodiscard]] const sf::Vector2f& getPosition() const;
     [[nodiscard]] const sf::Vector2f& getAimDirection() const;
 
+    // Collisions between characters
+    static constexpr float getRadius() { return HITBOX_RADIUS; }
+    static bool canStandAt(sf::Vector2f pos, const Map& map);
+    sf::Vector2f pushBy(sf::Vector2f offset, const Map& map);
+
+    // Health
+    void takeDamage(int amount);
+    [[nodiscard]] int getHealth() const { return health; }
+    [[nodiscard]] bool isDead() const { return health <= 0; }
+
 private:
     static constexpr float HITBOX_RADIUS = 30.f; // 60 px
-
-    static bool canStandAt(sf::Vector2f pos, const Map& map);
 
     static sf::Vector2f cellCenter(int cellX, int cellY);
     [[nodiscard]] bool canStandInCell(int cellX, int cellY, const Map& map) const;
