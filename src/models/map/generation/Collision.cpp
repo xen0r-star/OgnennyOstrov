@@ -18,6 +18,8 @@ namespace {
     constexpr auto HITBOX_FILE = "assets/hitboxes/tiles.json";
     constexpr float PI = 3.14159265f;
 
+    constexpr float BUSH_HIDE_RADIUS = TILE_SIZE * 0.4f;
+
     bool isTile(const GameMap::Tile& a, const GameMap::Tile& b) {
         return a.texture.col == b.texture.col && a.texture.row == b.texture.row;
     }
@@ -73,32 +75,37 @@ namespace {
     }
 }
 
-void MapGenerator::buildCollision(Map& map) {
-    const HitboxLibrary library = loadHitboxes();
+void MapGenerator::buildCellCollision(Map& map, const int x, const int y) {
+    static const HitboxLibrary library = loadHitboxes();
 
+    MapCell& cell = map.cells[y][x];
+    cell.hitboxes.clear();
+    cell.hideZones.clear();
+
+    for (const GameMap::Tile& tile : cell.layers) {
+        if (isTile(tile, Tiles::PROP_BUSH)) {
+            const sf::Vector2f center = toWorld({0.5f, 0.5f}, tile, x, y);
+            cell.hideZones.push_back({center.x, center.y, BUSH_HIDE_RADIUS * tile.modifier.scale});
+            continue;
+        }
+
+        const auto found = library.find({tile.texture.col, tile.texture.row});
+        if (found == library.end()) continue;
+
+        for (const Hitbox::Polygon& shape : found->second) {
+            Hitbox::Polygon polygon;
+            for (const sf::Vector2f& point : shape.points) {
+                polygon.points.push_back(toWorld(point, tile, x, y));
+            }
+            cell.hitboxes.push_back(polygon);
+        }
+    }
+}
+
+void MapGenerator::buildCollision(Map& map) {
     for (int y = 0; y < map.height; ++y) {
         for (int x = 0; x < map.width; ++x) {
-            MapCell& cell = map.cells[y][x];
-
-            for (const GameMap::Tile& tile : cell.layers) {
-                // A bush doesn't block, it only hides the player
-                if (isTile(tile, Tiles::PROP_BUSH)) {
-                    cell.hides = true;
-                    continue;
-                }
-
-                // No entry in the JSON = no hitbox = we can walk through
-                const auto found = library.find({tile.texture.col, tile.texture.row});
-                if (found == library.end()) continue;
-
-                for (const Hitbox::Polygon& shape : found->second) {
-                    Hitbox::Polygon polygon;
-                    for (const sf::Vector2f& point : shape.points) {
-                        polygon.points.push_back(toWorld(point, tile, x, y));
-                    }
-                    cell.hitboxes.push_back(polygon);
-                }
-            }
+            buildCellCollision(map, x, y);
         }
     }
 }
