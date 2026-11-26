@@ -18,7 +18,7 @@ Map MapGenerator::generateMap(const int height, const int width, const unsigned 
     addGuardPaths(map, rng, playZone);
     addRailPaths(map, rng, playZone);
     buildHouseFloors(map, rng, playZone);
-    buildDirtZones(map, rng, playZone);
+    buildStoneZones(map, rng, playZone);
 
     correctionsGuardPaths(map, rng, playZone);
 

@@ -173,3 +173,20 @@ bool Prisoner::moveToNearestFreeSpot(const sf::Vector2f target, const Map& map) 
     }
     return false;
 }
+
+bool Prisoner::isHidden(const Map& map) const {
+    const int cellX = static_cast<int>(std::floor(position.x / TILE_STEP));
+    const int cellY = static_cast<int>(std::floor(position.y / TILE_STEP));
+
+    // A big bush can spill over onto the neighbouring cells
+    for (int y = std::max(cellY - 1, 0); y <= std::min(cellY + 1, map.height - 1); ++y) {
+        for (int x = std::max(cellX - 1, 0); x <= std::min(cellX + 1, map.width - 1); ++x) {
+            for (const GameMap::HideZone& zone : map.cells[y][x].hideZones) {
+                const float dx = position.x - zone.x;
+                const float dy = position.y - zone.y;
+                if (dx * dx + dy * dy < zone.radius * zone.radius) return true;
+            }
+        }
+    }
+    return false;
+}

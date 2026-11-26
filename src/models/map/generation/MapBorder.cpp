@@ -77,6 +77,7 @@ void MapGenerator::buildMapBorder(Map& map, std::mt19937& rng, const int margin)
                 tile.modifier.scale    = scaleDist(rng);
 
                 if (propIndex == 0) {
+                    tile.modifier.scale = tile.modifier.scale * 1.5f; // Trees are bigger
                     addTile(map, x, y, tile, GameMap::ZIndex::Layer2);
                 } else {
                     addTile(map, x, y, tile, GameMap::ZIndex::Layer1);

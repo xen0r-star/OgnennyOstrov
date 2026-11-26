@@ -17,8 +17,12 @@ namespace {
     constexpr float HAND_SIDE = PLAYER_DRAW_SIZE * 0.35f;   // Hand offset
     constexpr float HAND_FORWARD = 32.f;                    // Hand position when idle
     constexpr float HAND_SWING = 0.f;                       // Hand swing amplitude
-    constexpr int WEAPON_CELL = 72;                           // taille d'une case dans weapons.png
-    constexpr float WEAPON_DRAW_SIZE = PLAYER_DRAW_SIZE * 0.9f; // taille de l'arme à l'écran
+
+    constexpr int WEAPON_CELL = 72;                             // Size of one cell in weapons_grid.png
+    constexpr float WEAPON_DRAW_SIZE = PLAYER_DRAW_SIZE * 0.9f; // Weapon size on screen
+
+    constexpr float HIDDEN_ALPHA = 110.f;  // Player opacity in a bush (0-255)
+    constexpr float HIDE_SPEED   = 10.f;   // Fade speed
 }
 
 PrisonerView::PrisonerView() {
@@ -27,8 +31,8 @@ PrisonerView::PrisonerView() {
     }
 
     texture.setSmooth(true);
-    if (!weaponTexture.loadFromFile("assets/textures/weapons_grid.png")) {
-        std::cerr << "Could not load assets/textures/weapons_grid.png" << std::endl;
+    if (!weaponTexture.loadFromFile("assets/textures/weapons.png")) {
+        std::cerr << "Could not load assets/textures/weapons.png" << std::endl;
     }
     weaponTexture.setSmooth(true);
 }
@@ -39,7 +43,7 @@ void PrisonerView::reset(const sf::Vector2f position) {
     walkPhase = 0.f;
 }
 
-void PrisonerView::update(const sf::Time dt, const Prisoner& prisoner) {
+void PrisonerView::update(const sf::Time dt, const Prisoner& prisoner, const bool hidden) {
     const float seconds = std::max(dt.asSeconds(), 0.0001f);
     const sf::Vector2f delta = prisoner.getPosition() - lastPosition;
     lastPosition = prisoner.getPosition();
@@ -50,6 +54,7 @@ void PrisonerView::update(const sf::Time dt, const Prisoner& prisoner) {
     moveAmount += (target - moveAmount) * (1.f - std::exp(-14.f * seconds));
     walkPhase += distance * 0.025f;
     idleTime += seconds;
+    hideAmount += ((hidden ? 1.f : 0.f) - hideAmount) * (1.f - std::exp(-HIDE_SPEED * seconds));
 }
 
 void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int character) const {
@@ -59,6 +64,9 @@ void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int 
     const float swing = std::sin(walkPhase) * moveAmount;                      // -1..1
     const float bounce = std::abs(std::sin(walkPhase)) * moveAmount;         //  0..1
     const float breath = std::sin(idleTime * 2.2f) * (1.f - moveAmount);     // Breathing at rest
+    const sf::Color tint(255, 255, 255, static_cast<sf::Uint8>(
+        255.f + (HIDDEN_ALPHA - 255.f) * hideAmount)
+    );
 
     // Hands
     if (texture.getSize().x >= static_cast<unsigned>(HAND_SIZE * (character + 1)) &&
@@ -68,7 +76,7 @@ void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int 
 
         constexpr float scale = PLAYER_DRAW_SIZE / FRAME_SIZE;
         hand.setScale(scale, scale);
-
+        hand.setColor(tint);
 
         const sf::Vector2f aim = prisoner.getAimDirection();
         const sf::Vector2f side(-aim.y, aim.x);
@@ -91,6 +99,7 @@ void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int 
     if (texture.getSize().x >= static_cast<unsigned>(FRAME_SIZE * (character + 1))) {
         sf::Sprite body(texture, sf::IntRect(character * FRAME_SIZE, 0, FRAME_SIZE, FRAME_SIZE));
         body.setOrigin(FRAME_SIZE / 2.f, FRAME_SIZE / 2.f);
+        body.setColor(tint);
 
         constexpr float scale = PLAYER_DRAW_SIZE / FRAME_SIZE;
         body.setScale(scale * (1.f + 0.015f * breath), scale * (1.f - 0.015f * breath));
@@ -98,6 +107,7 @@ void PrisonerView::draw(sf::RenderWindow& window, const Prisoner& prisoner, int 
         window.draw(body);
     }
 }
+
 void PrisonerView::drawWeapon(sf::RenderWindow& window, const int weapon,
                               const sf::Vector2f handPos, const sf::Vector2f aim) const {
     if (weapon < 0 || weapon >= Weapons::COUNT) return;   // mains nues

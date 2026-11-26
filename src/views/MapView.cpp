@@ -1,12 +1,26 @@
 #include "views/MapView.h"
+
 #include <SFML/Graphics.hpp>
-#include "core/Config.h"
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include "core/Config.h"
+#include "models/map/Tiles.h"
 
 namespace {
     constexpr int TEXTURE_TILE_SIZE = 384; // Texture tile size (px)
+
+    bool isRail(const GameMap::Tile& tile) {
+        const auto same = [&](const GameMap::Tile& ref) {
+            return tile.texture.col == ref.texture.col && tile.texture.row == ref.texture.row;
+        };
+        return same(Tiles::RAIL_STRAIGHT) || same(Tiles::RAIL_CURVE) || same(Tiles::RAIL_CROSSROADS);
+    }
+
+    bool isBush(const GameMap::Tile& tile) {
+        return tile.texture.col == Tiles::PROP_BUSH.texture.col &&
+               tile.texture.row == Tiles::PROP_BUSH.texture.row;
+    }
 }
 
 MapView::MapView() {
@@ -19,6 +33,21 @@ MapView::MapView() {
 }
 
 MapView::~MapView() = default;
+
+// Draws the map below the player (ground, paths, floors, tufts, bushes, rails)
+void MapView::drawGround(sf::RenderWindow& window, const Map& map) const {
+    drawPass(window, map, GameMap::ZIndex::Layer0, Filter::All);
+    drawPass(window, map, GameMap::ZIndex::Layer1, Filter::NoBush);   // paths, floors, tufts, campfire
+    drawPass(window, map, GameMap::ZIndex::Layer1, Filter::BushOnly); // bushes above the tufts
+    drawPass(window, map, GameMap::ZIndex::Layer2, Filter::RailOnly); // rails stay under the player
+}
+
+// Draws the map above the player (walls, trees, doors, furniture)
+void MapView::drawOverlay(sf::RenderWindow& window, const Map& map) const {
+    drawPass(window, map, GameMap::ZIndex::Layer2, Filter::NoRail);   // walls, trees, doors, furniture
+    drawPass(window, map, GameMap::ZIndex::Layer3, Filter::All);
+}
+
 
 void MapView::drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, const int x, const int y) const {
     const sf::IntRect rect(
@@ -43,14 +72,7 @@ void MapView::drawTile(sf::RenderWindow& window, const GameMap::Tile& tile, cons
     window.draw(sprite);
 }
 
-void MapView::drawMap(sf::RenderWindow& window, const Map& map) const {
-    static constexpr int zPasses[] = {
-        GameMap::ZIndex::Layer0,
-        GameMap::ZIndex::Layer1,
-        GameMap::ZIndex::Layer2,
-        GameMap::ZIndex::Layer3
-    };
-
+void MapView::drawPass(sf::RenderWindow& window, const Map& map, const int z, const Filter filter) const {
     const sf::View view = window.getView();
     const sf::Vector2f center = view.getCenter();
     const sf::Vector2f half = view.getSize() / 2.f;
@@ -61,14 +83,18 @@ void MapView::drawMap(sf::RenderWindow& window, const Map& map) const {
     const int minY = std::max(0, static_cast<int>(std::floor((center.y - half.y) / TILE_STEP)) - margin);
     const int maxY = std::min(map.height - 1, static_cast<int>(std::floor((center.y + half.y) / TILE_STEP)) + margin);
 
-    for (const int z : zPasses) {
-        for (int y = minY; y <= maxY; ++y) {
-            for (int x = minX; x <= maxX; ++x) {
-                for (const GameMap::Tile& tile : map.cells[y][x].layers) {
-                    if (tile.zIndex == z) {
-                        drawTile(window, tile, x, y);
-                    }
-                }
+    for (int y = minY; y <= maxY; ++y) {
+        for (int x = minX; x <= maxX; ++x) {
+            for (const GameMap::Tile& tile : map.cells[y][x].layers) {
+                if (tile.zIndex != z) continue;
+                const bool rail = isRail(tile);
+                const bool bush = isBush(tile);
+                if (filter == Filter::RailOnly && !rail) continue;
+                if (filter == Filter::NoRail && rail) continue;
+                if (filter == Filter::BushOnly && !bush) continue;
+                if (filter == Filter::NoBush && bush) continue;
+
+                drawTile(window, tile, x, y);
             }
         }
     }
