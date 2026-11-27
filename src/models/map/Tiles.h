@@ -65,6 +65,9 @@ namespace Tiles {
     inline constexpr auto PROP_TREE                 = GameMap::Tile(GameMap::Texture(8, 2));
     inline constexpr auto WALL_BARBED_WIRE          = GameMap::Tile(GameMap::Texture(8, 3));
     inline constexpr auto WATCHTOWER                = GameMap::Tile(GameMap::Texture(8, 4));
+
+    inline constexpr auto OBJECT_OPEN_CHEST         = GameMap::Tile(GameMap::Texture(9, 0));
+    inline constexpr auto OBJECT_CLOSED_CHEST       = GameMap::Tile(GameMap::Texture(9, 1));
 }
 
 #endif // OGNENNYOSTROV_TILES_H
